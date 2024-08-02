@@ -1,25 +1,25 @@
-import { useState } from 'react'
-import { supabase } from '../supabaseClient'
-import { useNavigate } from 'react-router-dom'
+import { useState } from "react";
+import { supabase } from "../supabaseClient";
+import { useNavigate } from "react-router-dom";
 
 export default function Auth() {
-  const [loading, setLoading] = useState(false)
-  const [email, setEmail] = useState('')
+  const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState("");
   const navigate = useNavigate();
 
   const handleLogin = async (event) => {
-    event.preventDefault()
+    event.preventDefault();
 
-    setLoading(true)
-    const { error } = await supabase.auth.signInWithOtp({ email })
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithOtp({ email });
 
     if (error) {
-      alert(error.error_description || error.message)
+      alert(error.error_description || error.message);
     } else {
-      alert('Check your email for the login link!')
+      alert("Check your email for the login link!");
     }
-    setLoading(false)
-  }
+    setLoading(false);
+  };
 
   return (
     <div className="row flex flex-center">
@@ -38,12 +38,12 @@ export default function Auth() {
             />
           </div>
           <div>
-            <button className={'button block'} disabled={loading}>
+            <button className={"button block"} disabled={loading}>
               {loading ? <span>Loading</span> : <span>Send magic link</span>}
             </button>
           </div>
         </form>
       </div>
     </div>
-  )
+  );
 }

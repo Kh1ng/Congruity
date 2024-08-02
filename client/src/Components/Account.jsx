@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient.js";
 
-const Account = ({ session }) => {
+function Account({ session }) {
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState(null);
   const [website, setWebsite] = useState(null);
@@ -67,7 +67,7 @@ const Account = ({ session }) => {
     <form onSubmit={updateProfile} className="form-widget">
       <div>
         <label htmlFor="email">Email</label>
-        <input id="email" type="text" value={session.user.email} disabled />
+        {/* <input id="email" type="text" value={session.user.email} disabled /> */}
       </div>
       <div>
         <label htmlFor="username">Name</label>

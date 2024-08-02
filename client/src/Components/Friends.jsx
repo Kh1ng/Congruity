@@ -1,52 +1,41 @@
-// src/Friends.jsx
 import React, { useEffect, useState } from "react";
-import { supabase, getCurrentUserId } from "../supabaseClient";
+import { getFriendsList } from "../Services/friendService";
 
-const fetchFriends = async (userId) => {
-  const { data, error } = await supabase
-    .from("friends")
-    .select("friend_id, friend_name")
-    .eq("user_id", userId);
-
-  if (error) {
-    console.error("Error fetching friends:", error);
-    return [];
-  }
-
-  return data;
-};
-
-function Friends({ onSelectFriend }) {
+function FriendsList({ session }) {
   const [friends, setFriends] = useState([]);
-  const [currentUserId, setCurrentUserId] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
-      const userId = await getCurrentUserId();
-      setCurrentUserId(userId);
-      if (userId) {
-        const friendsList = await fetchFriends(userId);
+    const fetchFriends = async () => {
+      if (session) {
+        const friendsList = await getFriendsList(session);
         setFriends(friendsList);
+        setLoading(false);
       }
     };
 
-    fetchData();
-  }, []);
+    fetchFriends();
+  }, [session]);
+
+  if (loading) {
+    return (
+      <div>
+        <h2 className="text-xl">Friends List</h2>
+        Loading...
+      </div>
+    );
+  }
 
   return (
     <div>
-      <h2>Friends List</h2>
+      <h1>Friends List</h1>
       <ul>
-        {friends.map((friend) => (
-          <li key={friend.friend_id}>
-            <button onClick={() => onSelectFriend(friend)}>
-              {friend.friend_name}
-            </button>
-          </li>
+        {friends.map((friendId) => (
+          <li key={friendId}>{friendId}</li>
         ))}
       </ul>
     </div>
   );
 }
 
-export default Friends;
+export default FriendsList;

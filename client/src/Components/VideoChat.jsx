@@ -50,6 +50,18 @@ function VideoChat({ token }) {
         setPeer(p);
       })
       .catch((error) => console.error("Error accessing media devices.", error));
+
+    return () => {
+      if (peer) {
+        peer.destroy();
+      }
+
+      if (myVideoRef.current.srcObject) {
+        myVideoRef.current.srcObject
+          .getTracks()
+          .forEach((track) => track.stop());
+      }
+    };
   }, [initiator]);
 
   const handleSignalSubmit = (ev) => {
@@ -73,7 +85,7 @@ function VideoChat({ token }) {
   };
 
   return (
-    <div className="bg-slate">
+    <div className="bg-gradient-to-bl from-slate-950 via-slate-700 to-slate-800 w-fill h-screen">
       <div>
         <video ref={myVideoRef} autoPlay muted style={{ width: "50%" }} />
         <video ref={peerVideoRef} autoPlay style={{ width: "50%" }} />
