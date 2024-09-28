@@ -8,7 +8,7 @@ import App from "./App";
 import Login from "./Components/Login";
 import VideoChat from "./Components/VideoChat";
 import Home from "./Components/Home";
-import Auth from "./Components/Auth";
+import ServerPage from "./Components/ServerPage";
 
 // Polyfill global for browser
 window.global = window;
@@ -31,6 +31,10 @@ const router = createBrowserRouter([
   {
     path: "/home",
     element: <Home />,
+  },
+  {
+    path: "/server/:serverId",
+    element: <ServerPage />,
   },
 ]);
 

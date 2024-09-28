@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../supabaseClient";
-import Friends from "./Friends";
-import Servers from "./Servers";
+import FriendsList from "./FriendsList";
+import Servers from "./ServerList";
 
 function Home() {
   const [loading, setLoading] = useState(true);
@@ -45,7 +45,7 @@ function Home() {
       </div>
       <div className="grid grid-cols-3">
         <div className="">
-          <Friends session={session.user.id} />
+          <FriendsList userId={session.user.id} />
         </div>
         <div>
           <h2> the feeeeeeeeed </h2>
