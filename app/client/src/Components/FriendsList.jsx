@@ -19,8 +19,33 @@ function FriendsList({ userId }) {
     fetchFriends();
   }, [userId]);
 
-  const handleStartCall = (friendId) => {
-    setSelectedFriend(friendId);
+  const handleStartCall = async (friendId) => {
+    try {
+      const response = await fetch("/functions/v1/signal", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: "call",
+          payload: {
+            caller_id: userId,
+            receiver_id: friendId,
+            room_id: `room-${userId}-${friendId}`,
+          },
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        console.log("Call signaling message sent:", data);
+        setSelectedFriend(friendId);
+      } else {
+        console.error("Error sending call signaling message:", data.error);
+      }
+    } catch (error) {
+      console.error("Error sending call signaling message:", error);
+    }
   };
 
   if (loading) {
@@ -43,19 +68,17 @@ function FriendsList({ userId }) {
                 onClick={() => handleStartCall(friendId)}
                 className="text-blue-500 underline"
               >
-                {friendId}{" "}
-                {/* Replace this with the friend's username or display name */}
+                {friendId}
               </button>
             </li>
           ))}
       </ul>
-
       {selectedFriend && (
         <VideoChat
-          token="your-auth-token"
           userId={userId}
           peerId={selectedFriend}
-          roomId="unique-room-id" // Use a dynamic room ID generation logic
+          roomId={`room-${userId}-${selectedFriend}`}
+          isInitiator={true}
         />
       )}
     </div>

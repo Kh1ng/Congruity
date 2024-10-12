@@ -1,14 +1,87 @@
 import React, { useEffect, useRef, useState } from "react";
 import SimplePeer from "simple-peer";
+import PropTypes from "prop-types";
 import { supabase } from "../supabaseClient";
 
 function VideoChat({ userId, peerId, roomId, isInitiator }) {
   const [peer, setPeer] = useState(null);
   const myVideoRef = useRef(null);
   const peerVideoRef = useRef(null);
-  const socketRef = useRef(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [messageQueue, setMessageQueue] = useState([]); // Queue for messages
+  const [messageQueue, setMessageQueue] = useState([]);
+
+  const sendMessage = async (message) => {
+    const response = await fetch("/functions/v1/signaling", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ type: "signal", payload: message }),
+    });
+
+    const data = await response.json();
+    if (response.ok) {
+      console.log("Signaling message sent:", data);
+    } else {
+      console.error("Error sending signaling message:", data.error);
+    }
+  };
+
+  const sendCall = () => {
+    const message = {
+      caller_id: userId,
+      room_id: roomId,
+    };
+    sendMessage(message);
+  };
+
+  const getMediaStream = () => {
+    navigator.mediaDevices
+      .getUserMedia({ video: true, audio: true })
+      .then((stream) => {
+        myVideoRef.current.srcObject = stream;
+
+        const p = new SimplePeer({
+          initiator: isInitiator,
+          trickle: false,
+          stream,
+        });
+
+        p.on("signal", (data) => {
+          const message = JSON.stringify({
+            signal: data,
+            user_id: userId,
+            peer_id: peerId,
+            room_id: roomId,
+          });
+          sendMessage(message);
+        });
+
+        p.on("connect", () => {
+          console.log("Peer connection established.");
+        });
+
+        p.on("stream", (stream) => {
+          peerVideoRef.current.srcObject = stream;
+        });
+
+        p.on("error", (err) => console.error("Peer connection error:", err));
+
+        setPeer(p);
+      })
+      .catch((error) => {
+        console.error("Error accessing media devices.", error);
+      });
+  };
+
+  const acceptCall = (callerId) => {
+    const message = {
+      accepter_id: userId,
+      room_id: roomId,
+    };
+    sendMessage(message);
+    getMediaStream();
+  };
 
   useEffect(() => {
     const setupWebSocket = async () => {
@@ -23,125 +96,44 @@ function VideoChat({ userId, peerId, roomId, isInitiator }) {
       }
 
       if (session) {
-        const token = session.access_token;
+        // Subscribe to the "calls" table
+        const subscription = supabase
+          .from("calls")
+          .on("INSERT", (payload) => {
+            const data = payload.new;
+            console.log("Received message:", data);
+            if (data.signal && peer) {
+              peer.signal(data.signal);
+            } else if (data.caller_id && !isInitiator) {
+              acceptCall(data.caller_id);
+            } else if (data.accepter_id) {
+              getMediaStream();
+            }
+          })
+          .subscribe();
 
-        socketRef.current = new WebSocket("ws://localhost:3030/ws");
+        setIsConnected(true);
 
-        socketRef.current.onopen = () => {
-          console.log("WebSocket connection established");
-          setIsConnected(true);
-          socketRef.current.send(JSON.stringify({ token }));
+        if (messageQueue.length > 0) {
+          // Process any queued messages
+          messageQueue.forEach((message) => sendMessage(message));
+          setMessageQueue([]);
+        }
 
-          if (messageQueue.length > 0) {
-            // Process any queued messages
-            messageQueue.forEach((message) => socketRef.current.send(message));
-            setMessageQueue([]);
-          }
+        if (isInitiator) {
+          sendCall();
+        }
 
-          if (isInitiator) {
-            sendCall();
-          }
+        return () => {
+          supabase.removeSubscription(subscription);
         };
-
-        socketRef.current.onmessage = (message) => {
-          const data = JSON.parse(message.data);
-          console.log("Received message:", data);
-          if (data.signal && peer) {
-            peer.signal(data.signal);
-          } else if (data.caller_id && !isInitiator) {
-            acceptCall(data.caller_id);
-          } else if (data.accepter_id) {
-            getMediaStream();
-          }
-        };
-
-        socketRef.current.onerror = (error) => {
-          console.error("WebSocket error:", error);
-        };
-
-        socketRef.current.onclose = (event) => {
-          console.log("WebSocket closed:", event);
-          setIsConnected(false);
-        };
-      } else {
-        console.log("No active session found.");
       }
-    };
-
-    const sendMessage = (message) => {
-      if (
-        socketRef.current &&
-        socketRef.current.readyState === WebSocket.OPEN
-      ) {
-        socketRef.current.send(message);
-      } else {
-        console.warn("WebSocket not ready, queueing message.");
-        setMessageQueue((prevQueue) => [...prevQueue, message]);
-      }
-    };
-
-    const sendCall = () => {
-      const message = JSON.stringify({
-        caller_id: userId,
-        room_id: roomId,
-      });
-      sendMessage(message);
-    };
-
-    const acceptCall = (callerId) => {
-      const message = JSON.stringify({
-        accepter_id: userId,
-        room_id: roomId,
-      });
-      sendMessage(message);
-      getMediaStream();
-    };
-
-    const getMediaStream = () => {
-      navigator.mediaDevices
-        .getUserMedia({ video: true, audio: true })
-        .then((stream) => {
-          myVideoRef.current.srcObject = stream;
-
-          const p = new SimplePeer({
-            initiator: isInitiator,
-            trickle: false,
-            stream,
-          });
-
-          p.on("signal", (data) => {
-            const message = JSON.stringify({
-              signal: data,
-              user_id: userId,
-              peer_id: peerId,
-              room_id: roomId,
-            });
-            sendMessage(message);
-          });
-
-          p.on("connect", () => {
-            console.log("Peer connection established.");
-          });
-
-          p.on("stream", (stream) => {
-            peerVideoRef.current.srcObject = stream;
-          });
-
-          p.on("error", (err) => console.error("Peer connection error:", err));
-
-          setPeer(p);
-        })
-        .catch((error) => {
-          console.error("Error accessing media devices.", error);
-        });
+      console.log("No active session found.");
     };
 
     setupWebSocket();
 
     return () => {
-      if (socketRef.current) {
-        socketRef.current.close();
-      }
       if (peer) {
         peer.destroy();
       }
@@ -168,5 +160,12 @@ function VideoChat({ userId, peerId, roomId, isInitiator }) {
     </div>
   );
 }
+
+VideoChat.propTypes = {
+  userId: PropTypes.string.isRequired,
+  peerId: PropTypes.string.isRequired,
+  roomId: PropTypes.string.isRequired,
+  isInitiator: PropTypes.bool.isRequired,
+};
 
 export default VideoChat;

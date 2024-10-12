@@ -16,9 +16,9 @@ export const getFriendsList = async (userId) => {
     return [];
   }
 
-  const friendsList = data.map((friendship) => {
-    return friendship.sender === userId ? friendship.friend : friendship.sender;
-  });
+  const friendsList = data.map((friendship) =>
+    friendship.sender === userId ? friendship.friend : friendship.sender
+  );
 
   console.log("Processed friends list:", friendsList); // Ensure this is an array
 
