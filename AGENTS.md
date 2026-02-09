@@ -28,66 +28,82 @@ Congruity is a Discord alternative focused on:
 
 ## Development Commands
 
-### Client (React + Vite)
+### Client (React + Vite + Tauri)
 ```bash
 cd client
 npm install
-npm run dev        # Start Vite dev server (port 5173)
-npm run devh       # Start with --host flag for network access
-npm run build      # Production build
-npm run lint       # ESLint with Airbnb config
+npm run dev          # Start Vite dev server (port 5173)
+npm run test         # Run Vitest in watch mode
+npm run test:run     # Run tests once
+npm run tauri:dev    # Start Tauri desktop app (dev mode)
+npm run tauri:build  # Build production Tauri app
+npm run lint         # ESLint with Airbnb config
 ```
 
-### Server (Express.js)
+### Server (Signaling only)
 ```bash
 cd server
 npm install
-npm start          # Start with nodemon (ports 3000 + 3001)
+npm start            # Start signaling server (port 3001)
 ```
 
-### Database (Prisma + PostgreSQL)
+### Self-Hosted Deployment
 ```bash
-cd server
-npx prisma migrate dev     # Run migrations
-npx prisma generate        # Generate Prisma client
-npx prisma studio          # Database GUI
-node seed.js               # Seed database
+cd docker
+./setup.sh           # Interactive setup script
+docker compose up -d # Start all services
+docker compose logs -f  # View logs
 ```
 
-Required environment variables in `server/.env`:
-- `DATABASE_URL` - PostgreSQL connection string
-- `JWT_SECRET` - Secret for JWT token signing
+### Environment Variables
+Client (`client/.env`):
+- `VITE_SUPABASE_URL` - Supabase API URL
+- `VITE_SUPABASE_ANON_KEY` - Supabase anonymous key
+- `VITE_SIGNALING_URL` - WebRTC signaling server URL
 
 ## Architecture
 
-### Monorepo Structure
-- `client/` - React frontend (primary implementation)
-- `server/` - Express.js backend with WebSocket signaling
-- `app/` - Alternative implementation using Supabase (experimental)
-
-### Backend (`server/`)
-- **Entry point**: `index.js` - Runs Express API on port 3000 and Socket.IO signaling server on port 3001
-- **Routes**: `routes/` - REST endpoints for auth, servers, friends
-- **Middleware**: `middleware/security.middleware.js` - JWT authentication via `authenticate` function
-- **Database**: Prisma ORM with PostgreSQL; schema in `prisma/schema.prisma`
+### Project Structure
+```
+congruity/
+├── client/                 # Tauri + React app
+│   ├── src-tauri/          # Tauri native shell (Rust)
+│   ├── src/
+│   │   ├── Components/     # React components
+│   │   ├── hooks/          # Custom React hooks (useAuth, etc.)
+│   │   ├── lib/            # Supabase client, utilities
+│   │   └── test/           # Vitest setup
+│   └── package.json
+├── server/                 # WebRTC signaling server only
+│   ├── Dockerfile
+│   └── index.js
+├── docker/                 # Self-hosted deployment
+│   ├── docker-compose.yml  # Supabase + signaling
+│   └── setup.sh            # Interactive setup
+└── supabase/
+    └── migrations/         # SQL schema + RLS policies
+```
 
 ### Frontend (`client/`)
-- **Entry point**: `src/main.jsx` - React Router setup with AuthProvider context
-- **Components**: `src/Components/` - React components (Login, Home, VideoChat, Servers, etc.)
-- **Services**: `src/Services/` - API client functions (note: some use Prisma directly which won't work in browser)
-- **Auth**: `AuthContext.jsx` provides `userId` and `login` via React Context
+- **Tauri**: Native desktop shell in `src-tauri/` (Rust)
+- **Entry point**: `src/main.jsx` - React Router with AuthProvider
+- **Auth**: `src/hooks/useAuth.jsx` - Supabase auth hook with session management
+- **Supabase client**: `src/lib/supabase.js`
+- **Tests**: Vitest with React Testing Library
 
-### Data Model (Prisma)
-Core entities: `User`, `Server`, `Channel`, `Message`, `Friendship`, `Call`
-- Users belong to Servers via `ServerMembership`
-- Users belong to Channels via `ChannelMembership`
-- `Friendship` uses composite key `[senderId, receiverId]`
+### Backend (Supabase + Signaling)
+- **Database**: PostgreSQL via Supabase (schema in `supabase/migrations/`)
+- **Auth**: Supabase Auth (email/password, OAuth)
+- **Realtime**: Supabase Realtime for messages
+- **Signaling**: Minimal Socket.IO server for WebRTC (port 3001)
+
+### Data Model (Supabase)
+Core tables: `profiles`, `servers`, `server_members`, `channels`, `messages`, `dm_channels`, `dm_messages`, `friendships`
+- `profiles` extends Supabase `auth.users`
+- Row Level Security (RLS) policies in `002_rls_policies.sql`
+- Auto-creates profile on user signup via trigger
 
 ### Real-time Communication
-- **Signaling**: Socket.IO server handles WebRTC signaling (offer/answer/ICE candidates)
-- **Video chat**: `VideoChat.jsx` uses native WebRTC APIs with Google STUN server
-- **API proxy**: Vite proxies `/api/*` requests to Express backend (see `vite.config.js`)
-
-## Known Issues / Technical Debt
-- `client/src/Services/messages.js` imports PrismaClient directly - this won't work in browser and should use fetch API
-- `middleware/security.middleware.js` has hardcoded `"your_secret_key"` in `authMiddleware` (unused), while `authenticate` correctly uses `process.env.JWT_SECRET`
+- **Messages**: Supabase Realtime subscriptions
+- **WebRTC Signaling**: Socket.IO (offer/answer/ICE candidates)
+- **STUN**: Google STUN servers for NAT traversal
