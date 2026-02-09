@@ -1,9 +1,11 @@
+/// <reference types="vitest" />
 import { defineConfig, loadEnv } from "vite";
 import { polyfillNode } from "esbuild-plugin-polyfill-node";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 import viteReact from "@vitejs/plugin-react";
 import tailwindcss from "tailwindcss";
 import autoprefixer from "autoprefixer";
+import path from "path";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd());
@@ -44,13 +46,6 @@ export default defineConfig(({ mode }) => {
         plugins: [],
       },
     },
-    resolve: {
-      alias: {
-        buffer: "buffer",
-        stream: "stream-browserify",
-        crypto: "crypto-browserify",
-      },
-    },
     build: {
       entryPoints: ["src/index.js"],
       bundle: true,
@@ -63,6 +58,20 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       "import.meta.env": env,
+    },
+    test: {
+      globals: true,
+      environment: "jsdom",
+      setupFiles: ["./src/test/setup.js"],
+      include: ["src/**/*.{test,spec}.{js,jsx,ts,tsx}"],
+    },
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+        buffer: "buffer",
+        stream: "stream-browserify",
+        crypto: "crypto-browserify",
+      },
     },
   };
 });
