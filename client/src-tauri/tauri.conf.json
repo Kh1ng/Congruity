@@ -22,11 +22,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'"
-    },
-    "trayIcon": {
-      "iconPath": "icons/icon.png",
-      "iconAsTemplate": true
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' http://localhost:* ws://localhost:* https://*.supabase.co wss://*.supabase.co; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:"
     }
   },
   "bundle": {
