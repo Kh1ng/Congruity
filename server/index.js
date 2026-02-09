@@ -1,76 +1,104 @@
+/**
+ * Congruity WebRTC Signaling Server
+ * 
+ * This server handles WebRTC signaling for voice/video calls.
+ * All other functionality (auth, messages, etc.) is handled by Supabase.
+ */
+
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
-const { PrismaClient } = require("@prisma/client");
 
-const prisma = new PrismaClient();
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
-const jwt = require("jsonwebtoken");
 
-//routes stuff
-const loginRoutes = require("./routes/login");
-const signupRoutes = require("./routes/signup");
-const sessionRoutes = require("./routes/session");
-const serverRoutes = require("./routes/servers");
-const friendsListRoutes = require("./routes/friendsList");
-
-app.use(express.json());
-app.use("/login", loginRoutes);
-app.use("/signup", signupRoutes);
-app.use("/session", sessionRoutes);
-app.use("/servers", serverRoutes);
-app.use("/friendsList", friendsListRoutes);
-
-app.get("/", (req, res) => {
-  res.send("You found the REAR end!");
+// Configure Socket.IO with CORS for dev
+const io = new Server(server, {
+  cors: {
+    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+    methods: ["GET", "POST"],
+  },
 });
 
-// Health check endpoint for Docker
+// Track users in rooms
+const rooms = new Map();
+
+// Health check endpoint
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.get("/", (req, res) => {
+  res.send("Congruity Signaling Server");
 });
 
 io.on("connection", (socket) => {
-  console.log("A user connected:", socket.id);
+  console.log("User connected:", socket.id);
 
-  // Handle offer
-  socket.on("offer", async ({ offer, roomId, userId }) => {
-    // Save offer to database
-    await prisma.call.create({
-      data: { callerId: userId, roomId },
-    });
-    socket.broadcast.to(roomId).emit("offer", { offer });
-  });
-
-  // Handle answer
-  socket.on("answer", async ({ answer, roomId }) => {
-    socket.broadcast.to(roomId).emit("answer", { answer });
-  });
-
-  // Handle ICE candidates
-  socket.on("ice-candidate", ({ candidate, roomId }) => {
-    socket.broadcast.to(roomId).emit("ice-candidate", { candidate });
-  });
-
-  // Join a room
-  socket.on("join-room", async (roomId) => {
+  // Join a voice/video room
+  socket.on("join-room", (roomId) => {
     socket.join(roomId);
-    console.log(`User joined room: ${roomId}`);
+    
+    // Track user in room
+    if (!rooms.has(roomId)) {
+      rooms.set(roomId, new Set());
+    }
+    rooms.get(roomId).add(socket.id);
+    
+    // Notify others in the room
+    socket.to(roomId).emit("user-joined", { userId: socket.id });
+    
+    console.log(`User ${socket.id} joined room ${roomId}`);
   });
 
-  // Disconnect
+  // Leave a room
+  socket.on("leave-room", (roomId) => {
+    socket.leave(roomId);
+    
+    if (rooms.has(roomId)) {
+      rooms.get(roomId).delete(socket.id);
+      if (rooms.get(roomId).size === 0) {
+        rooms.delete(roomId);
+      }
+    }
+    
+    socket.to(roomId).emit("user-left", { userId: socket.id });
+    console.log(`User ${socket.id} left room ${roomId}`);
+  });
+
+  // WebRTC signaling: offer
+  socket.on("offer", ({ offer, to, roomId }) => {
+    socket.to(to).emit("offer", { offer, from: socket.id });
+  });
+
+  // WebRTC signaling: answer
+  socket.on("answer", ({ answer, to, roomId }) => {
+    socket.to(to).emit("answer", { answer, from: socket.id });
+  });
+
+  // WebRTC signaling: ICE candidate
+  socket.on("ice-candidate", ({ candidate, to, roomId }) => {
+    socket.to(to).emit("ice-candidate", { candidate, from: socket.id });
+  });
+
+  // Handle disconnect
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
+    
+    // Remove from all rooms and notify
+    rooms.forEach((users, roomId) => {
+      if (users.has(socket.id)) {
+        users.delete(socket.id);
+        socket.to(roomId).emit("user-left", { userId: socket.id });
+        if (users.size === 0) {
+          rooms.delete(roomId);
+        }
+      }
+    });
   });
 });
 
-server.listen(3001, () => {
-  console.log("Signaling server running on port 3001");
+const PORT = process.env.PORT || 3001;
+server.listen(PORT, () => {
+  console.log(`Signaling server running on port ${PORT}`);
 });
