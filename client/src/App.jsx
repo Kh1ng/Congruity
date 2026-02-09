@@ -1,61 +1,43 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import Login from "./Components/Login";
 import Home from "./Components/Home";
-import { useAuth } from "./Components/AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 
 function App() {
-  const { userId, login } = useAuth();
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchSession = async () => {
-      const token = localStorage.getItem("authToken");
-      console.log("Token being sent:", token); // Log the token
-      if (!token) {
-        console.error("No authToken found in localStorage");
-        setLoading(false);
-        return; // Exit if no token
-      }
-      try {
-        const response = await fetch("api/session", {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (response.ok) {
-          const data = await response.json();
-          login(data.userId); // Update userId in AuthContext
-        } else {
-          console.error("Session fetch failed:", response.status);
-        }
-      } catch (error) {
-        console.error("Failed to fetch session:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchSession();
-  }, [login]);
+  const { user, loading, signOut } = useAuth();
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen bg-slate-900 text-slate-200">
+        <div className="text-xl">Loading...</div>
+      </div>
+    );
   }
 
-  if (!userId) {
+  if (!user) {
     return (
-      <div className=" items-center justify-center">
-        <h1 className="text-center justify-center p-5 m-5 text-gruvbox-orange text-3xl font-bold">
-          Sign in to Congruity
-        </h1>
-        <Login />
+      <div className="min-h-screen bg-gradient-to-bl from-slate-950 via-slate-700 to-slate-800 text-slate-200">
+        <div className="flex flex-col items-center justify-center pt-20">
+          <h1 className="text-center p-5 m-5 text-gruvbox-orange text-3xl font-bold">
+            Sign in to Congruity
+          </h1>
+          <Login />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-gradient-to-bl from-slate-950 via-slate-700 to-slate-800 w-fill h-screen text-slate-200 p-10 mx-auto">
+    <div className="bg-gradient-to-bl from-slate-950 via-slate-700 to-slate-800 min-h-screen text-slate-200 p-10 mx-auto">
+      <div className="flex justify-between items-center mb-4">
+        <span className="text-sm text-slate-400">Logged in as {user.email}</span>
+        <button
+          onClick={signOut}
+          className="text-sm text-slate-400 hover:text-gruvbox-orange"
+        >
+          Sign Out
+        </button>
+      </div>
       <Home />
     </div>
   );
