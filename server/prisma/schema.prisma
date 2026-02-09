@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+
+  messages            Message[]
+  channels            ChannelMembership[]
+  servers             ServerMembership[]
+  friendshipsSent     Friendship[]        @relation("FriendshipsSent")
+  friendshipsReceived Friendship[]        @relation("FriendshipsReceived")
+}
+
+model Call {
+  id         String   @id @default(cuid())
+  callerId   String
+  accepterId String?
+  roomId     String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Server {
+  id          String   @id @default(uuid()) @db.Uuid
+  createdAt   DateTime @default(now())
+  name        String   @default("-1")
+  thumbnail   String?
+  description String?
+
+  channels Channel[]
+  members  ServerMembership[]
+}
+
+model Channel {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  serverId    String?  @db.Uuid
+  server      Server?  @relation(fields: [serverId], references: [id])
+
+  messages Message[]
+  members  ChannelMembership[]
+}
+
+model ChannelMembership {
+  id        String    @id @default(uuid()) @db.Uuid
+  channelId String    @db.Uuid
+  userId    String    @db.Uuid
+  joinedAt  DateTime? @default(now())
+
+  channel Channel @relation(fields: [channelId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+}
+
+model Message {
+  id        String   @id @default(uuid()) @db.Uuid
+  channelId String   @db.Uuid
+  userId    String   @db.Uuid
+  content   String
+  createdAt DateTime @default(now())
+
+  channel Channel @relation(fields: [channelId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+}
+
+model Friendship {
+  senderId   String   @db.Uuid
+  receiverId String   @db.Uuid
+  status     String
+  createdAt  DateTime @default(now())
+
+  sender   User @relation("FriendshipsSent", fields: [senderId], references: [id])
+  receiver User @relation("FriendshipsReceived", fields: [receiverId], references: [id])
+
+  @@id([senderId, receiverId]) // Composite primary key ensures unique friendships
+}
+
+model ServerMembership {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now())
+  serverId  String?  @db.Uuid
+  userId    String?  @db.Uuid
+
+  server Server? @relation(fields: [serverId], references: [id])
+  user   User?   @relation(fields: [userId], references: [id])
+}

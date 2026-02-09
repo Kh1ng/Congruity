@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+  }
+}
+
+@layer components {
+}
+
+:root {
+  /* Background colors */
+  --bg-dark: #282828;
+  --bg-light: #32302f;
+
+  /* Foreground colors */
+  --fg-light: #ebdbb2;
+  --fg-dark: #d5c4a1;
+
+  /* Accent colors */
+  --accent-red: #fb4934;
+  --accent-green: #b8bb26;
+  --accent-yellow: #fabd2f;
+  --accent-blue: #83a598;
+  --accent-purple: #d3869b;
+  --accent-aqua: #8ec07c;
+  --accent-orange: #fe8019;
+
+  /* Borders and highlights */
+  --border: #665c54;
+}
+
+body {
+  background-color: var(--bg-dark);
+  color: var(--fg-light);
+  font-family: "Inter", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+a {
+  color: var(--accent-blue);
+}
+
+button {
+  background-color: var(--bg-light);
+  color: var(--fg-light);
+  border: 1px solid var(--border);
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+}
+
+button:hover {
+  background-color: var(--accent-orange);
+  color: var(--bg-dark);
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea {
+  background-color: var(--bg-dark); /* Dark background */
+  color: var(--fg-light); /* Light text */
+  border: 1px solid var(--border); /* Border matches the theme */
+  border-radius: 4px;
+  padding: 0.5rem;
+  font-size: 1rem;
+  width: 100%;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent-orange); /* Highlight on focus */
+  box-shadow: 0 0 5px var(--accent-orange);
+}
