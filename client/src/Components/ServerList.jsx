@@ -1,68 +1,100 @@
-import React, { useEffect, useState } from "react";
-import { useAuth } from "./AuthContext";
+import React, { useState } from "react";
+import { useServers } from "@/hooks";
 
 function ServerList() {
-  const { userId, authToken } = useAuth();
-  const [servers, setServers] = useState([]); // Initialize state for servers
-  const [loading, setLoading] = useState(true); // Add loading state
-  const [error, setError] = useState(null); // Add error state
+  const { servers, loading, error, createServer, joinServer } = useServers();
+  const [showCreate, setShowCreate] = useState(false);
+  const [newServerName, setNewServerName] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
 
-  useEffect(() => {
-    const fetchServers = async () => {
-      try {
-        const response = await fetch(`/api/servers/${userId}`, {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          console.log("Fetched servers:", data);
-          setServers(data);
-        } else {
-          console.error("Failed to fetch servers");
-          setError("Failed to fetch servers");
-        }
-      } catch (error) {
-        console.error("Error fetching servers:", error);
-        setError("An error occurred while fetching servers");
-      } finally {
-        setLoading(false); // Ensure loading state is updated
-      }
-    };
-
-    if (userId && authToken) {
-      fetchServers();
+  const handleCreate = async (e) => {
+    e.preventDefault();
+    if (!newServerName.trim()) return;
+    try {
+      await createServer(newServerName);
+      setNewServerName("");
+      setShowCreate(false);
+    } catch (err) {
+      alert(err.message);
     }
-  }, [userId, authToken]);
+  };
+
+  const handleJoin = async (e) => {
+    e.preventDefault();
+    if (!inviteCode.trim()) return;
+    try {
+      await joinServer(inviteCode);
+      setInviteCode("");
+    } catch (err) {
+      alert(err.message);
+    }
+  };
 
   if (loading) {
-    return <div>Loading servers...</div>; // Show loading state
+    return <div>Loading servers...</div>;
   }
 
   if (error) {
-    return <div className="text-red-500">{error}</div>; // Show error state
-  }
-
-  if (servers.length === 0) {
-    return <div>No servers found.</div>; // Handle empty server list
+    return <div className="text-red-500">{error}</div>;
   }
 
   return (
     <div>
-      <h1 className="text-xl font-bold">Server List</h1>
-      <ul className="space-y-4">
-        {servers.map((server) => (
-          <li
-            key={server.id}
-            className="border border-gray-300 rounded p-4 shadow hover:shadow-md"
-          >
-            <h3 className="text-lg font-semibold">{server.name}</h3>
-            <p>{server.description}</p>
-          </li>
-        ))}
-      </ul>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-xl font-bold">Servers</h1>
+        <button
+          onClick={() => setShowCreate(!showCreate)}
+          className="text-sm hover:text-gruvbox-orange"
+        >
+          + New
+        </button>
+      </div>
+
+      {showCreate && (
+        <form onSubmit={handleCreate} className="mb-4 p-2 border rounded">
+          <input
+            type="text"
+            value={newServerName}
+            onChange={(e) => setNewServerName(e.target.value)}
+            placeholder="Server name"
+            className="w-full p-1 mb-2 text-black rounded"
+          />
+          <button type="submit" className="text-sm hover:text-gruvbox-orange">
+            Create Server
+          </button>
+        </form>
+      )}
+
+      <form onSubmit={handleJoin} className="mb-4 flex gap-2">
+        <input
+          type="text"
+          value={inviteCode}
+          onChange={(e) => setInviteCode(e.target.value)}
+          placeholder="Invite code"
+          className="flex-1 p-1 text-black rounded text-sm"
+        />
+        <button type="submit" className="text-sm hover:text-gruvbox-orange">
+          Join
+        </button>
+      </form>
+
+      {servers.length === 0 ? (
+        <div className="text-slate-400">No servers yet. Create or join one!</div>
+      ) : (
+        <ul className="space-y-2">
+          {servers.map((server) => (
+            <li
+              key={server.id}
+              className="border border-slate-600 rounded p-3 hover:border-gruvbox-orange cursor-pointer"
+            >
+              <h3 className="font-semibold">{server.name}</h3>
+              {server.description && (
+                <p className="text-sm text-slate-400">{server.description}</p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

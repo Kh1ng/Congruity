@@ -1,11 +1,11 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "./AuthContext";
+import { useAuth } from "@/hooks/useAuth";
 import FriendsList from "./FriendsList";
 import Servers from "./ServerList";
 
 function Home() {
-  const { userId, logout } = useAuth();
+  const { signOut } = useAuth();
 
   return (
     <div>
@@ -17,17 +17,17 @@ function Home() {
         <div>Stuff</div>
         <span> | </span>
         <div>More Stuff</div>
-        <button onClick={logout}>Logout</button>
+        <button onClick={signOut} className="hover:text-gruvbox-orange">Logout</button>
       </div>
       <div className="grid grid-cols-3">
         <div>
-          <FriendsList userId={userId} />
+          <FriendsList />
         </div>
         <div>
           <h2>The Feed</h2>
         </div>
         <div>
-          <Servers userId={userId} />
+          <Servers />
         </div>
       </div>
     </div>
