@@ -1,34 +1,27 @@
-import React, { useState, useEffect } from "react";
-import { getMessages, postMessage } from "../Services/messages";
+import React, { useState } from "react";
+import { useMessages } from "@/hooks";
 
-function Messages({ channelId, userId }) {
-  const [messages, setMessages] = useState([]);
+function Messages({ channelId }) {
+  const { messages, loading, error, sendMessage } = useMessages(channelId);
   const [newMessage, setNewMessage] = useState("");
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchMessages = async () => {
-      if (channelId) {
-        const data = await getMessages(channelId);
-        setMessages(data);
-        setLoading(false);
-      }
-    };
-
-    fetchMessages();
-  }, [channelId]);
 
   const handlePostMessage = async () => {
-    if (newMessage.trim()) {
-      await postMessage(channelId, newMessage, userId);
+    if (!newMessage.trim()) return;
+    try {
+      await sendMessage(newMessage);
       setNewMessage("");
-      const updatedMessages = await getMessages(channelId);
-      setMessages(updatedMessages);
+    } catch (err) {
+      console.error("Error sending message:", err);
+      alert(err.message);
     }
   };
 
   if (loading) {
     return <div>Loading messages...</div>;
+  }
+
+  if (error) {
+    return <div className="text-red-500">{error}</div>;
   }
 
   return (
@@ -37,7 +30,12 @@ function Messages({ channelId, userId }) {
       <ul>
         {messages.map((message) => (
           <li key={message.id}>
-            <strong>{message.user_id}: </strong>
+            <strong>
+              {message.profiles?.display_name ||
+                message.profiles?.username ||
+                message.user_id}
+              :{" "}
+            </strong>
             {message.content}
           </li>
         ))}
