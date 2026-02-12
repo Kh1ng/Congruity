@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { useServers } from "@/hooks";
 
-function ServerList() {
+function ServerList({ onSelectServer }) {
   const { servers, loading, error, createServer, joinServer } = useServers();
   const [showCreate, setShowCreate] = useState(false);
   const [newServerName, setNewServerName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
+  const [selectedId, setSelectedId] = useState(null);
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -85,7 +86,15 @@ function ServerList() {
           {servers.map((server) => (
             <li
               key={server.id}
-              className="border border-slate-600 rounded p-3 hover:border-gruvbox-orange cursor-pointer"
+              className={`border rounded p-3 cursor-pointer hover:border-gruvbox-orange ${
+                selectedId === server.id
+                  ? "border-gruvbox-orange"
+                  : "border-slate-600"
+              }`}
+              onClick={() => {
+                setSelectedId(server.id);
+                onSelectServer?.(server);
+              }}
             >
               <h3 className="font-semibold">{server.name}</h3>
               {server.description && (

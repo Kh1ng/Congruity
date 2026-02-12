@@ -1,11 +1,15 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import FriendsList from "./FriendsList";
-import Servers from "./ServerList";
+import ServerList from "./ServerList";
+import ChannelList from "./ChannelList";
+import DMChat from "./DMChat";
 
 function Home() {
   const { signOut } = useAuth();
+  const [selectedServer, setSelectedServer] = useState(null);
+  const [selectedFriend, setSelectedFriend] = useState(null);
 
   return (
     <div>
@@ -19,15 +23,16 @@ function Home() {
         <div>More Stuff</div>
         <button onClick={signOut} className="hover:text-gruvbox-orange">Logout</button>
       </div>
-      <div className="grid grid-cols-3">
+      <div className="grid grid-cols-3 gap-6">
         <div>
-          <FriendsList />
+          <FriendsList onMessage={(friend) => setSelectedFriend(friend)} />
+        </div>
+        <div className="space-y-6">
+          <ChannelList serverId={selectedServer?.id} />
+          <DMChat friend={selectedFriend} />
         </div>
         <div>
-          <h2>The Feed</h2>
-        </div>
-        <div>
-          <Servers />
+          <ServerList onSelectServer={(server) => setSelectedServer(server)} />
         </div>
       </div>
     </div>

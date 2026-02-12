@@ -87,6 +87,45 @@
 
 ---
 
+## Friends & DMs
+
+### US-025 — Add a friend
+**As a** user, **I want** to add a friend by username.
+- **Acceptance Criteria**:
+  - Add friend form submits username
+  - Request is sent
+- **Tests**:
+  - `client/src/Components/FriendsList.test.jsx::add friend`
+
+### US-026 — View friends & start DM
+**As a** user, **I want** to see my friends and start a DM.
+- **Acceptance Criteria**:
+  - Friends list renders
+  - Message button triggers DM selection
+- **Tests**:
+  - `client/src/Components/FriendsList.test.jsx::renders friends and message button`
+
+### US-027 — Send a DM
+**As a** user, **I want** to send a DM to a friend.
+- **Acceptance Criteria**:
+  - DM input submits
+  - sendMessage is called with content
+- **Tests**:
+  - `client/src/Components/DMChat.test.jsx::send DM`
+
+---
+
+## Channels
+
+### US-028 — View channels
+**As a** user, **I want** to see channels for a server.
+- **Acceptance Criteria**:
+  - Text/voice/video channels are displayed
+- **Tests**:
+  - `client/src/Components/ChannelList.test.jsx::renders channel groups`
+
+---
+
 ## Voice/Video
 
 ### US-030 — Join a call room
