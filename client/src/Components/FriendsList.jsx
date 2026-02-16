@@ -35,7 +35,7 @@ function FriendsList({ onMessage }) {
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           placeholder="Add friend by username"
-          className="flex-1 p-1 text-black rounded text-sm"
+          className="flex-1 bg-slate-900/70 border border-slate-700 rounded px-3 py-2 text-slate-100 text-sm"
         />
         <button type="submit" className="text-sm hover:text-gruvbox-orange">
           Add

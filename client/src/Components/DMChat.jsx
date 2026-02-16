@@ -50,8 +50,13 @@ function DMChat({ friend }) {
           type="text"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleSend();
+            }
+          }}
           placeholder="Type a DM"
-          className="flex-1 p-1 text-black rounded"
+          className="flex-1 bg-slate-900/70 border border-slate-700 rounded px-3 py-2 text-slate-100"
         />
         <button onClick={handleSend} className="text-sm hover:text-gruvbox-orange">
           Send

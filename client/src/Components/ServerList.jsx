@@ -58,7 +58,7 @@ function ServerList({ onSelectServer }) {
             value={newServerName}
             onChange={(e) => setNewServerName(e.target.value)}
             placeholder="Server name"
-            className="w-full p-1 mb-2 text-black rounded"
+            className="w-full bg-slate-900/70 border border-slate-700 rounded px-3 py-2 text-slate-100 mb-2"
           />
           <button type="submit" className="text-sm hover:text-gruvbox-orange">
             Create Server
@@ -72,7 +72,7 @@ function ServerList({ onSelectServer }) {
           value={inviteCode}
           onChange={(e) => setInviteCode(e.target.value)}
           placeholder="Invite code"
-          className="flex-1 p-1 text-black rounded text-sm"
+          className="flex-1 bg-slate-900/70 border border-slate-700 rounded px-3 py-2 text-slate-100 text-sm"
         />
         <button type="submit" className="text-sm hover:text-gruvbox-orange">
           Join

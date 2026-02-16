@@ -6,11 +6,23 @@ import viteReact from "@vitejs/plugin-react";
 import tailwindcss from "tailwindcss";
 import autoprefixer from "autoprefixer";
 import path from "path";
+import fs from "fs";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd());
+  const certPath = path.resolve(__dirname, ".cert/dev-cert.pem");
+  const keyPath = path.resolve(__dirname, ".cert/dev-key.pem");
+  const hasCerts = fs.existsSync(certPath) && fs.existsSync(keyPath);
+
   return {
     server: {
+      https: hasCerts
+        ? {
+            cert: fs.readFileSync(certPath),
+            key: fs.readFileSync(keyPath),
+          }
+        : false,
+      host: true,
       proxy: {
         "/api": {
           target: "http://localhost:3000",

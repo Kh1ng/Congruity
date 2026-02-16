@@ -55,6 +55,11 @@ function Login() {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleSubmit(e);
+            }
+          }}
           placeholder="Password"
           required
           minLength={6}

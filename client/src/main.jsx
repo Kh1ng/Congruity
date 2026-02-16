@@ -8,7 +8,6 @@ import App from "./App";
 import Login from "./Components/Login";
 import VideoChat from "./Components/VideoChat";
 import Home from "./Components/Home";
-import Servers from "./Components/Servers";
 import { AuthProvider } from "@/hooks/useAuth";
 
 // Polyfill global for browser
@@ -32,10 +31,6 @@ const router = createBrowserRouter([
   {
     path: "/home",
     element: <Home />,
-  },
-  {
-    path: "/server/:serverId",
-    element: <Servers />,
   },
 ]);
 

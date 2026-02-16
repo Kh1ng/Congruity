@@ -174,6 +174,12 @@ export function useWebRTC(roomId) {
         setError(null);
 
         // Get user media
+        if (!navigator?.mediaDevices?.getUserMedia) {
+          throw new Error(
+            "Microphone access unavailable. Use HTTPS (or localhost) to enable getUserMedia."
+          );
+        }
+
         const stream = await navigator.mediaDevices.getUserMedia({
           video,
           audio,

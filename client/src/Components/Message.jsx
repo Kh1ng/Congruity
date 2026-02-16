@@ -16,8 +16,12 @@ function Messages({ channelId }) {
     }
   };
 
+  if (!channelId) {
+    return <div className="text-slate-400">Select a channel to start chatting.</div>;
+  }
+
   if (loading) {
-    return <div>Loading messages...</div>;
+    return <div className="text-slate-400">Loading messages...</div>;
   }
 
   if (error) {
@@ -25,28 +29,47 @@ function Messages({ channelId }) {
   }
 
   return (
-    <div>
-      <h1>Messages</h1>
-      <ul>
-        {messages.map((message) => (
-          <li key={message.id}>
-            <strong>
-              {message.profiles?.display_name ||
-                message.profiles?.username ||
-                message.user_id}
-              :{" "}
-            </strong>
-            {message.content}
-          </li>
-        ))}
-      </ul>
-      <input
-        type="text"
-        value={newMessage}
-        onChange={(e) => setNewMessage(e.target.value)}
-        placeholder="Type a message"
-      />
-      <button onClick={handlePostMessage}>Send</button>
+    <div className="flex flex-col h-full">
+      <div className="text-sm text-slate-400 mb-2">Channel chat</div>
+      <div className="flex-1 overflow-y-auto border border-slate-700 rounded p-3 bg-slate-950/40">
+        {messages.length === 0 ? (
+          <div className="text-slate-400">No messages yet</div>
+        ) : (
+          <ul className="space-y-2">
+            {messages.map((message) => (
+              <li key={message.id}>
+                <span className="text-slate-400 mr-2">
+                  {message.profiles?.display_name ||
+                    message.profiles?.username ||
+                    message.profiles?.id ||
+                    message.user_id}
+                </span>
+                <span>{message.content}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <div className="mt-3 flex gap-2">
+        <input
+          type="text"
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handlePostMessage();
+            }
+          }}
+          placeholder="Type a message"
+          className="flex-1 bg-slate-900/70 border border-slate-700 rounded px-3 py-2 text-slate-100"
+        />
+        <button
+          onClick={handlePostMessage}
+          className="px-4 py-2 text-sm font-medium hover:text-gruvbox-orange"
+        >
+          Send
+        </button>
+      </div>
     </div>
   );
 }
