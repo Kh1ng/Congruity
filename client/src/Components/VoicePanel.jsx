@@ -236,7 +236,6 @@ function VoicePanel({ channel, voice, memberMap }) {
           </select>
         </label>
       </div>
-      </div>
       {error && <div className="text-red-500 mb-2">{error}</div>}
 
       {showVideoStage && (
