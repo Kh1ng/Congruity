@@ -62,7 +62,6 @@ function VoicePanel({ channel, voice, memberMap }) {
   });
   const [hiddenStreams, setHiddenStreams] = React.useState(() => new Set());
   const [focusedStreamId, setFocusedStreamId] = React.useState(null);
-  const stageInitRef = useRef(false);
 
   useEffect(() => {
     localStorage.setItem("voice:autoVideo", String(autoVideo));
@@ -154,23 +153,19 @@ function VoicePanel({ channel, voice, memberMap }) {
   const hasActiveVideo = visibleVideoParticipants.length > 0;
   const showVideoStage = autoVideo && hasActiveVideo;
 
-  useEffect(() => {
-    if (!showVideoStage) {
-      stageInitRef.current = false;
-      return;
-    }
-    if (stageInitRef.current) return;
-    const defaults = visibleVideoParticipants
-      .filter((participant) => !participant.isLocal)
-      .map((participant) => participant.id);
-    if (!defaults.length) return;
-    setStageStreamIds(defaults);
-    stageInitRef.current = true;
-  }, [showVideoStage, visibleVideoParticipants, setStageStreamIds]);
+  const defaultStageIds = useMemo(
+    () =>
+      visibleVideoParticipants
+        .filter((participant) => !participant.isLocal)
+        .map((participant) => participant.id),
+    [visibleVideoParticipants]
+  );
+
+  const effectiveStageIds = stageStreamIds.length ? stageStreamIds : defaultStageIds;
 
   const stageParticipants = focusedStreamId
     ? visibleVideoParticipants.filter((participant) => participant.id === focusedStreamId)
-    : visibleVideoParticipants.filter((participant) => stageStreamIds.includes(participant.id));
+    : visibleVideoParticipants.filter((participant) => effectiveStageIds.includes(participant.id));
 
   return (
     <div className="flex flex-col h-full">
