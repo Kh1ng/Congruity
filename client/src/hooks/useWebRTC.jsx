@@ -38,7 +38,9 @@ export function useWebRTC(roomId) {
   const [roomUsers, setRoomUsers] = useState([]);
 
   const socketRef = useRef(null);
+  const localSocketIdRef = useRef(null);
   const peerConnectionsRef = useRef(new Map());
+  const peerMetaRef = useRef(new Map());
   const localStreamRef = useRef(null);
 
   /**
@@ -55,6 +57,7 @@ export function useWebRTC(roomId) {
 
     socket.on("connect", () => {
       console.log("Connected to signaling server");
+      localSocketIdRef.current = socket.id;
       if (roomId) {
         socket.emit("join-room", { roomId, userId: user?.id });
       }
@@ -72,6 +75,19 @@ export function useWebRTC(roomId) {
     socket.on("offer", async ({ offer, from }) => {
       console.log("Received offer from:", from);
       const pc = await createPeerConnection(from, false);
+      const meta = peerMetaRef.current.get(from);
+      const offerCollision = meta?.makingOffer || pc.signalingState !== "stable";
+      const polite = meta?.polite ?? false;
+
+      if (offerCollision && !polite) {
+        console.warn("Offer collision: ignoring (impolite)", from);
+        return;
+      }
+
+      if (offerCollision) {
+        await pc.setLocalDescription({ type: "rollback" });
+      }
+
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
@@ -114,9 +130,15 @@ export function useWebRTC(roomId) {
 
     for (const [userId, pc] of peerConnectionsRef.current.entries()) {
       if (pc.signalingState !== "stable") continue;
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      socket.emit("offer", { offer, to: userId, roomId });
+      const meta = peerMetaRef.current.get(userId);
+      try {
+        if (meta) meta.makingOffer = true;
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socket.emit("offer", { offer, to: userId, roomId, from: socket.id });
+      } finally {
+        if (meta) meta.makingOffer = false;
+      }
     }
   }, [roomId]);
 
@@ -131,6 +153,16 @@ export function useWebRTC(roomId) {
       }
 
       const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+      const localSocketId = localSocketIdRef.current;
+      const polite =
+        localSocketId && userId
+          ? localSocketId.localeCompare(userId) < 0
+          : false;
+
+      peerMetaRef.current.set(userId, {
+        makingOffer: false,
+        polite,
+      });
 
       // Add local tracks
       if (localStreamRef.current) {
@@ -171,9 +203,20 @@ export function useWebRTC(roomId) {
 
       // Create and send offer if we're the initiator
       if (createOffer && socketRef.current) {
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        socketRef.current.emit("offer", { offer, to: userId, roomId });
+        const meta = peerMetaRef.current.get(userId);
+        try {
+          if (meta) meta.makingOffer = true;
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          socketRef.current.emit("offer", {
+            offer,
+            to: userId,
+            roomId,
+            from: socketRef.current.id,
+          });
+        } finally {
+          if (meta) meta.makingOffer = false;
+        }
       }
 
       return pc;
@@ -189,6 +232,7 @@ export function useWebRTC(roomId) {
     if (pc) {
       pc.close();
       peerConnectionsRef.current.delete(userId);
+      peerMetaRef.current.delete(userId);
     }
     setRemoteStreams((prev) => {
       const updated = new Map(prev);
