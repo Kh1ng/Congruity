@@ -6,7 +6,6 @@ import ServerList from "./ServerList";
 import ChannelList from "./ChannelList";
 import DMChat from "./DMChat";
 import Messages from "./Message";
-import VoicePanel from "./VoicePanel";
 import VoiceDock from "./VoiceDock";
 import ServerProfilePanel from "./ServerProfilePanel";
 import DockStack from "./DockStack";
@@ -63,17 +62,8 @@ function Home() {
   const renderChannelPanel = useMemo(() => {
     if (!selectedChannel) return <Messages channelId={null} />;
         if (selectedChannel.type === "voice" || selectedChannel.type === "video") {
-      if (disableVoicePanel) {
-        return (
-          <div className="text-slate-400">Voice panel temporarily disabled for render-loop isolation.</div>
-        );
-      }
       return (
-        <VoicePanel
-          channel={selectedChannel}
-          voice={voiceSession}
-          memberMap={memberMap}
-        />
+        <div className="text-slate-400">Voice panel temporarily disabled for render-loop isolation.</div>
       );
     }
     return (
