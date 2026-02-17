@@ -23,6 +23,7 @@ function Home() {
   const [collapseServers, setCollapseServers] = useState(false);
   const [collapseChannels, setCollapseChannels] = useState(false);
   const [collapseSocial, setCollapseSocial] = useState(true);
+  const [showLayoutMenu, setShowLayoutMenu] = useState(false);
 
   const voiceSession = useWebRTC(activeVoiceChannel?.id);
   const videoSession = useWebRTC(activeVideoChannel?.id);
@@ -80,19 +81,35 @@ function Home() {
             {selectedChannel ? `#${selectedChannel.name}` : "Select a channel"}
           </div>
         </div>
-        <div className="flex items-center gap-2 text-xs text-slate-400">
-          <button onClick={() => setCollapseServers((v) => !v)} className="hover:text-gruvbox-orange">
-            {collapseServers ? "Show Servers" : "Hide Servers"}
+        <div className="relative text-xs text-slate-400">
+          <button
+            onClick={() => setShowLayoutMenu((v) => !v)}
+            className="hover:text-gruvbox-orange"
+          >
+            Layout
           </button>
-          <button onClick={() => setCollapseChannels((v) => !v)} className="hover:text-gruvbox-orange">
-            {collapseChannels ? "Show Channels" : "Hide Channels"}
-          </button>
-          <button onClick={() => setCollapseSocial((v) => !v)} className="hover:text-gruvbox-orange">
-            {collapseSocial ? "Show Social" : "Hide Social"}
-          </button>
-          <button onClick={signOut} className="hover:text-gruvbox-orange">
-            Logout
-          </button>
+          {showLayoutMenu && (
+            <div className="absolute right-0 mt-2 w-40 rounded border border-slate-800 bg-slate-950/90 p-2 shadow-lg">
+              <button
+                onClick={() => setCollapseServers((v) => !v)}
+                className="block w-full text-left text-xs text-slate-300 hover:text-gruvbox-orange"
+              >
+                {collapseServers ? "Show Servers" : "Hide Servers"}
+              </button>
+              <button
+                onClick={() => setCollapseChannels((v) => !v)}
+                className="mt-1 block w-full text-left text-xs text-slate-300 hover:text-gruvbox-orange"
+              >
+                {collapseChannels ? "Show Channels" : "Hide Channels"}
+              </button>
+              <button
+                onClick={() => setCollapseSocial((v) => !v)}
+                className="mt-1 block w-full text-left text-xs text-slate-300 hover:text-gruvbox-orange"
+              >
+                {collapseSocial ? "Show Social" : "Hide Social"}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
