@@ -5,6 +5,7 @@ import ServerList from "./ServerList";
 import ChannelList from "./ChannelList";
 import Messages from "./Message";
 import VoicePanel from "./VoicePanel";
+import VoiceDock from "./VoiceDock";
 import DockStack from "./DockStack";
 import SettingsView from "./SettingsView";
 import AppShell from "./AppShell";
@@ -137,12 +138,31 @@ function Home() {
       ),
     });
 
+    registerPanel("voice", {
+      dock: "left",
+      title: "Voice",
+      order: 3,
+      content: activeVoiceChannel ? (
+        <VoiceDock
+          embedded
+          channel={activeVoiceChannel}
+          voice={voiceSession}
+          memberMap={memberMap}
+        />
+      ) : (
+        <div className="text-xs text-slate-500">Join a voice channel.</div>
+      ),
+    });
+
     return listPanelsByDock("left");
   }, [
+    activeVoiceChannel,
     collapseChannels,
     collapseServers,
+    memberMap,
     selectedServer?.id,
     selectedChannel?.id,
+    voiceSession,
   ]);
 
   const rightPanels = useMemo(() => {
@@ -204,7 +224,7 @@ function Home() {
           layout={layoutPreset}
           regions={{
             leftDock: (
-              <aside className="bg-slate-950/40 border border-slate-800 rounded p-2 min-h-0 h-full">
+              <aside className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-2 min-h-0 h-full">
                 <DockStack
                   dockId="left"
                   panels={leftPanels}
@@ -213,12 +233,12 @@ function Home() {
               </aside>
             ),
             workspace: (
-              <main className="bg-slate-950/40 border border-slate-800 rounded p-3 flex flex-col min-h-0">
+              <main className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-3 flex flex-col min-h-0">
                 {renderChannelPanel}
               </main>
             ),
             rightDock: (
-              <aside className="bg-slate-950/40 border border-slate-800 rounded p-2 min-h-0 h-full">
+              <aside className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-2 min-h-0 h-full">
                 {collapseSocial ? (
                   <div className="text-xs text-slate-500">Settings</div>
                 ) : (
