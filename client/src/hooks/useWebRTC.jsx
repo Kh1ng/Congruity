@@ -67,6 +67,7 @@ export function useWebRTC(roomId) {
   const audioContextRef = useRef(null);
   const audioEnabledRef = useRef(false);
   const meterActiveRef = useRef(false);
+  const isConnectedRef = useRef(false);
 
   const ensureAudioContext = useCallback(async () => {
     if (!audioEnabledRef.current) return null;
@@ -639,7 +640,11 @@ export function useWebRTC(roomId) {
     playCue("leave");
   }, [roomId, playCue]);
 
-  // Audio level meters
+  useEffect(() => {
+    isConnectedRef.current = isConnected;
+  }, [isConnected]);
+
+  // Audio level meters (single loop, gated by isConnectedRef)
   useEffect(() => {
     let rafId;
     let isActive = true;
@@ -668,11 +673,16 @@ export function useWebRTC(roomId) {
 
       const tick = (ts) => {
         if (!isActive) return;
-        if (ts - lastTick < 80) {
+        if (ts - lastTick < 120) {
           rafId = requestAnimationFrame(tick);
           return;
         }
         lastTick = ts;
+
+        if (!isConnectedRef.current) {
+          rafId = requestAnimationFrame(tick);
+          return;
+        }
 
         const nextLevels = {};
         const nextWaveforms = {};
@@ -717,15 +727,9 @@ export function useWebRTC(roomId) {
       rafId = requestAnimationFrame(tick);
     };
 
-    if (isConnected) {
-      if (!meterActiveRef.current) {
-        meterActiveRef.current = true;
-        start();
-      }
-    } else {
-      meterActiveRef.current = false;
-      setAudioLevels({});
-      setAudioWaveforms({});
+    if (!meterActiveRef.current) {
+      meterActiveRef.current = true;
+      start();
     }
 
     return () => {
@@ -733,7 +737,7 @@ export function useWebRTC(roomId) {
       meterActiveRef.current = false;
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [isConnected, ensureAudioContext]);
+  }, [ensureAudioContext]);
 
   // Cleanup on unmount
   useEffect(() => {
