@@ -44,7 +44,7 @@ const io = new Server(server, {
   },
 });
 
-// Track users in rooms
+// Track users in rooms (roomId -> Map<socketId, userId>)
 const rooms = new Map();
 
 // Health check endpoint
@@ -60,56 +60,63 @@ io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
   const emitRoomUsers = (roomId) => {
-    const users = Array.from(rooms.get(roomId) || []);
+    const users = Array.from(rooms.get(roomId)?.entries() || []).map(
+      ([socketId, userId]) => ({ socketId, userId })
+    );
     io.to(roomId).emit("room-users", { roomId, users });
   };
 
   // Join a voice/video room
-  socket.on("join-room", (roomId) => {
+  socket.on("join-room", ({ roomId, userId }) => {
     socket.join(roomId);
+
+    const participantId = userId || socket.id;
 
     // Track user in room
     if (!rooms.has(roomId)) {
-      rooms.set(roomId, new Set());
+      rooms.set(roomId, new Map());
     }
-    rooms.get(roomId).add(socket.id);
+    rooms.get(roomId).set(socket.id, participantId);
 
     // Notify others in the room
-    socket.to(roomId).emit("user-joined", { userId: socket.id });
+    socket.to(roomId).emit("user-joined", {
+      socketId: socket.id,
+      userId: participantId,
+    });
     emitRoomUsers(roomId);
 
-    console.log(`User ${socket.id} joined room ${roomId}`);
+    console.log(`User ${participantId} joined room ${roomId}`);
   });
 
   // Leave a room
-  socket.on("leave-room", (roomId) => {
+  socket.on("leave-room", ({ roomId }) => {
     socket.leave(roomId);
 
     if (rooms.has(roomId)) {
+      const participantId = rooms.get(roomId).get(socket.id) || socket.id;
       rooms.get(roomId).delete(socket.id);
       if (rooms.get(roomId).size === 0) {
         rooms.delete(roomId);
       }
+      socket.to(roomId).emit("user-left", { socketId: socket.id, userId: participantId });
+      emitRoomUsers(roomId);
+      console.log(`User ${participantId} left room ${roomId}`);
     }
-
-    socket.to(roomId).emit("user-left", { userId: socket.id });
-    emitRoomUsers(roomId);
-    console.log(`User ${socket.id} left room ${roomId}`);
   });
 
   // WebRTC signaling: offer
-  socket.on("offer", ({ offer, to, roomId }) => {
-    socket.to(to).emit("offer", { offer, from: socket.id });
+  socket.on("offer", ({ offer, to, roomId, from }) => {
+    socket.to(to).emit("offer", { offer, from: from || socket.id });
   });
 
   // WebRTC signaling: answer
-  socket.on("answer", ({ answer, to, roomId }) => {
-    socket.to(to).emit("answer", { answer, from: socket.id });
+  socket.on("answer", ({ answer, to, roomId, from }) => {
+    socket.to(to).emit("answer", { answer, from: from || socket.id });
   });
 
   // WebRTC signaling: ICE candidate
-  socket.on("ice-candidate", ({ candidate, to, roomId }) => {
-    socket.to(to).emit("ice-candidate", { candidate, from: socket.id });
+  socket.on("ice-candidate", ({ candidate, to, roomId, from }) => {
+    socket.to(to).emit("ice-candidate", { candidate, from: from || socket.id });
   });
 
   // Handle disconnect
@@ -119,8 +126,12 @@ io.on("connection", (socket) => {
     // Remove from all rooms and notify
     rooms.forEach((users, roomId) => {
       if (users.has(socket.id)) {
+        const participantId = users.get(socket.id) || socket.id;
         users.delete(socket.id);
-        socket.to(roomId).emit("user-left", { userId: socket.id });
+        socket.to(roomId).emit("user-left", {
+          socketId: socket.id,
+          userId: participantId,
+        });
         emitRoomUsers(roomId);
         if (users.size === 0) {
           rooms.delete(roomId);

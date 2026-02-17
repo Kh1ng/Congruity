@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { io } from "socket.io-client";
+import { useAuth } from "@/hooks/useAuth";
 
 const SIGNALING_URL = import.meta.env.VITE_SIGNALING_URL || "ws://localhost:3001";
 
@@ -26,6 +27,7 @@ const ICE_SERVERS = [
  * @param {string} roomId - Room/channel ID to join
  */
 export function useWebRTC(roomId) {
+  const { user } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
   const [localStream, setLocalStream] = useState(null);
   const [remoteStreams, setRemoteStreams] = useState(new Map());
@@ -54,13 +56,13 @@ export function useWebRTC(roomId) {
     socket.on("connect", () => {
       console.log("Connected to signaling server");
       if (roomId) {
-        socket.emit("join-room", roomId);
+        socket.emit("join-room", { roomId, userId: user?.id });
       }
     });
 
-    socket.on("user-joined", async ({ userId }) => {
-      console.log("User joined:", userId);
-      await createPeerConnection(userId, true);
+    socket.on("user-joined", async ({ socketId, userId }) => {
+      console.log("User joined:", userId || socketId);
+      await createPeerConnection(socketId, true);
     });
 
     socket.on("room-users", ({ users }) => {
@@ -73,7 +75,7 @@ export function useWebRTC(roomId) {
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      socket.emit("answer", { answer, to: from, roomId });
+      socket.emit("answer", { answer, to: from, roomId, from: socket.id });
     });
 
     socket.on("answer", async ({ answer, from }) => {
@@ -91,9 +93,9 @@ export function useWebRTC(roomId) {
       }
     });
 
-    socket.on("user-left", ({ userId }) => {
-      console.log("User left:", userId);
-      removePeerConnection(userId);
+    socket.on("user-left", ({ socketId, userId }) => {
+      console.log("User left:", userId || socketId);
+      removePeerConnection(socketId);
     });
 
     socket.on("disconnect", () => {
@@ -370,7 +372,7 @@ export function useWebRTC(roomId) {
 
     // Disconnect socket
     if (socketRef.current) {
-      socketRef.current.emit("leave-room", roomId);
+      socketRef.current.emit("leave-room", { roomId });
       socketRef.current.disconnect();
       socketRef.current = null;
     }
