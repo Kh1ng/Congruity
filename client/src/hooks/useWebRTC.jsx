@@ -50,18 +50,28 @@ export function useWebRTC(roomId) {
   const peerMetaRef = useRef(new Map());
   const localStreamRef = useRef(null);
   const audioContextRef = useRef(null);
+  const audioEnabledRef = useRef(false);
 
-  const ensureAudioContext = useCallback(() => {
-    if (audioContextRef.current) return audioContextRef.current;
+  const ensureAudioContext = useCallback(async () => {
+    if (!audioEnabledRef.current) return null;
+    if (audioContextRef.current) {
+      if (audioContextRef.current.state === "suspended") {
+        await audioContextRef.current.resume();
+      }
+      return audioContextRef.current;
+    }
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextClass) return null;
     audioContextRef.current = new AudioContextClass();
+    if (audioContextRef.current.state === "suspended") {
+      await audioContextRef.current.resume();
+    }
     return audioContextRef.current;
   }, []);
 
   const playTone = useCallback(
-    (frequency, durationMs, startAt = 0) => {
-      const context = ensureAudioContext();
+    async (frequency, durationMs, startAt = 0) => {
+      const context = await ensureAudioContext();
       if (!context) return;
       const oscillator = context.createOscillator();
       const gain = context.createGain();
@@ -320,7 +330,8 @@ export function useWebRTC(roomId) {
       try {
         setError(null);
         setIsVideoOff(!video);
-        ensureAudioContext();
+        audioEnabledRef.current = true;
+        await ensureAudioContext();
 
         // Get user media
         if (!navigator?.mediaDevices?.getUserMedia) {
