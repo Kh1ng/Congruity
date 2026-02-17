@@ -16,10 +16,12 @@ const app = express();
 const corsOrigins = (process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(",")
   : ["http://localhost:5173", "https://localhost:5173"]
-).map((origin) => origin.trim()).filter(Boolean);
+)
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
-const sslCertPath = process.env.SSL_CERT_PATH;
-const sslKeyPath = process.env.SSL_KEY_PATH;
+const sslCertPath = process.env.SSL_CERT_PATH || process.env.TLS_CERT_PATH;
+const sslKeyPath = process.env.SSL_KEY_PATH || process.env.TLS_KEY_PATH;
 const useHttps =
   sslCertPath &&
   sslKeyPath &&
@@ -98,7 +100,11 @@ io.on("connection", (socket) => {
       if (rooms.get(roomId).size === 0) {
         rooms.delete(roomId);
       }
-      socket.to(roomId).emit("user-left", { socketId: socket.id, userId: participantId });
+
+      socket.to(roomId).emit("user-left", {
+        socketId: socket.id,
+        userId: participantId,
+      });
       emitRoomUsers(roomId);
       console.log(`User ${participantId} left room ${roomId}`);
     }

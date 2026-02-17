@@ -49,89 +49,55 @@ export function useWebRTC(roomId) {
   const peerConnectionsRef = useRef(new Map());
   const peerMetaRef = useRef(new Map());
   const localStreamRef = useRef(null);
+  const audioContextRef = useRef(null);
 
-  /**
-   * Initialize Socket.IO connection
-   */
-  const initSocket = useCallback(() => {
-    if (socketRef.current?.connected) return socketRef.current;
+  const ensureAudioContext = useCallback(() => {
+    if (audioContextRef.current) return audioContextRef.current;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return null;
+    audioContextRef.current = new AudioContextClass();
+    return audioContextRef.current;
+  }, []);
 
-    const socket = io(SIGNALING_URL || DEFAULT_SIGNALING_URL, {
-      transports: ["websocket"],
-      reconnection: true,
-      reconnectionAttempts: 5,
-    });
+  const playTone = useCallback(
+    (frequency, durationMs, startAt = 0) => {
+      const context = ensureAudioContext();
+      if (!context) return;
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.value = frequency;
+      oscillator.connect(gain);
+      gain.connect(context.destination);
 
-    socket.on("connect", () => {
-      console.log("Connected to signaling server");
-      localSocketIdRef.current = socket.id;
-      setLocalSocketId(socket.id);
-      if (roomId) {
-        socket.emit("join-room", { roomId, userId: user?.id });
-      }
-    });
+      const now = context.currentTime + startAt;
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.15, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + durationMs / 1000);
+      oscillator.start(now);
+      oscillator.stop(now + durationMs / 1000 + 0.05);
+    },
+    [ensureAudioContext]
+  );
 
-    socket.on("user-joined", async ({ socketId, userId }) => {
-      console.log("User joined:", userId || socketId);
-      await createPeerConnection(socketId, true);
-    });
-
-    socket.on("room-users", ({ users }) => {
-      setRoomUsers(users || []);
-    });
-
-    socket.on("offer", async ({ offer, from }) => {
-      console.log("Received offer from:", from);
-      const pc = await createPeerConnection(from, false);
-      const meta = peerMetaRef.current.get(from);
-      const offerCollision = meta?.makingOffer || pc.signalingState !== "stable";
-      const polite = meta?.polite ?? false;
-
-      if (offerCollision && !polite) {
-        console.warn("Offer collision: ignoring (impolite)", from);
+  const playCue = useCallback(
+    (type) => {
+      if (type === "join") {
+        playTone(520, 140, 0);
+        playTone(740, 140, 0.16);
         return;
       }
-
-      if (offerCollision) {
-        await pc.setLocalDescription({ type: "rollback" });
+      if (type === "leave") {
+        playTone(740, 140, 0);
+        playTone(520, 140, 0.16);
+        return;
       }
-
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socket.emit("answer", { answer, to: from, roomId, from: socket.id });
-    });
-
-    socket.on("answer", async ({ answer, from }) => {
-      console.log("Received answer from:", from);
-      const pc = peerConnectionsRef.current.get(from);
-      if (pc) {
-        await pc.setRemoteDescription(new RTCSessionDescription(answer));
+      if (type === "connected") {
+        playTone(640, 120, 0);
       }
-    });
-
-    socket.on("ice-candidate", async ({ candidate, from }) => {
-      const pc = peerConnectionsRef.current.get(from);
-      if (pc && candidate) {
-        await pc.addIceCandidate(new RTCIceCandidate(candidate));
-      }
-    });
-
-    socket.on("user-left", ({ socketId, userId }) => {
-      console.log("User left:", userId || socketId);
-      removePeerConnection(socketId);
-    });
-
-    socket.on("disconnect", () => {
-      console.log("Disconnected from signaling server");
-      setIsConnected(false);
-      setRoomUsers([]);
-      setLocalSocketId(null);
-    });
-
-    socketRef.current = socket;
-    return socket;
-  }, [roomId]);
+    },
+    [playTone]
+  );
 
   const renegotiateAll = useCallback(async () => {
     if (!socketRef.current) return;
@@ -151,7 +117,6 @@ export function useWebRTC(roomId) {
     }
   }, [roomId]);
 
-
   /**
    * Create a peer connection for a remote user
    */
@@ -162,11 +127,8 @@ export function useWebRTC(roomId) {
       }
 
       const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-      const localSocketId = localSocketIdRef.current;
-      const polite =
-        localSocketId && userId
-          ? localSocketId.localeCompare(userId) < 0
-          : false;
+      const localId = localSocketIdRef.current;
+      const polite = localId && userId ? localId.localeCompare(userId) < 0 : false;
 
       peerMetaRef.current.set(userId, {
         makingOffer: false,
@@ -187,6 +149,7 @@ export function useWebRTC(roomId) {
             candidate: event.candidate,
             to: userId,
             roomId,
+            from: socketRef.current.id,
           });
         }
       };
@@ -194,9 +157,12 @@ export function useWebRTC(roomId) {
       // Handle remote stream
       pc.ontrack = (event) => {
         console.log("Received remote track from:", userId);
+        const inboundStream = event.streams?.[0]
+          ? event.streams[0]
+          : new MediaStream([event.track]);
         setRemoteStreams((prev) => {
           const updated = new Map(prev);
-          updated.set(userId, event.streams[0]);
+          updated.set(userId, inboundStream);
           return updated;
         });
       };
@@ -251,6 +217,99 @@ export function useWebRTC(roomId) {
   }, []);
 
   /**
+   * Initialize Socket.IO connection
+   */
+  const initSocket = useCallback(() => {
+    if (socketRef.current?.connected) return socketRef.current;
+
+    const socket = io(SIGNALING_URL || DEFAULT_SIGNALING_URL, {
+      transports: ["websocket"],
+      reconnection: true,
+      reconnectionAttempts: 5,
+    });
+
+    socket.on("connect", () => {
+      console.log("Connected to signaling server");
+      localSocketIdRef.current = socket.id;
+      setLocalSocketId(socket.id);
+      if (roomId) {
+        socket.emit("join-room", { roomId, userId: user?.id });
+      }
+      playCue("connected");
+    });
+
+    socket.on("user-joined", async ({ socketId, userId }) => {
+      console.log("User joined:", userId || socketId);
+      await createPeerConnection(socketId, true);
+      playCue("join");
+    });
+
+    socket.on("room-users", ({ users }) => {
+      setRoomUsers(users || []);
+      const socketId = socketRef.current?.id;
+      if (!localStreamRef.current || !Array.isArray(users)) return;
+      users
+        .filter((user) => (user.socketId || user) && (user.socketId || user) !== socketId)
+        .forEach((user) => {
+          createPeerConnection(user.socketId || user, true);
+        });
+    });
+
+    socket.on("offer", async ({ offer, from }) => {
+      console.log("Received offer from:", from);
+      const pc = await createPeerConnection(from, false);
+      const meta = peerMetaRef.current.get(from);
+      const offerCollision = meta?.makingOffer || pc.signalingState !== "stable";
+      const polite = meta?.polite ?? false;
+
+      if (offerCollision && !polite) {
+        console.warn("Offer collision: ignoring (impolite)", from);
+        return;
+      }
+
+      if (offerCollision) {
+        await pc.setLocalDescription({ type: "rollback" });
+      }
+
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      socket.emit("answer", { answer, to: from, roomId, from: socket.id });
+    });
+
+    socket.on("answer", async ({ answer, from }) => {
+      console.log("Received answer from:", from);
+      const pc = peerConnectionsRef.current.get(from);
+      if (pc) {
+        await pc.setRemoteDescription(new RTCSessionDescription(answer));
+      }
+    });
+
+    socket.on("ice-candidate", async ({ candidate, from }) => {
+      const pc = peerConnectionsRef.current.get(from);
+      if (pc && candidate) {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+    });
+
+    socket.on("user-left", ({ socketId, userId }) => {
+      console.log("User left:", userId || socketId);
+      removePeerConnection(socketId);
+      playCue("leave");
+    });
+
+    socket.on("disconnect", () => {
+      console.log("Disconnected from signaling server");
+      setIsConnected(false);
+      setRoomUsers([]);
+      setLocalSocketId(null);
+    });
+
+    socketRef.current = socket;
+    return socket;
+  }, [roomId, user?.id, createPeerConnection, removePeerConnection, playCue]);
+
+  /**
    * Start a call with media
    * @param {Object} options - Media options
    * @param {boolean} options.video - Enable video
@@ -260,6 +319,8 @@ export function useWebRTC(roomId) {
     async ({ video = true, audio = true } = {}) => {
       try {
         setError(null);
+        setIsVideoOff(!video);
+        ensureAudioContext();
 
         // Get user media
         if (!navigator?.mediaDevices?.getUserMedia) {
@@ -285,7 +346,7 @@ export function useWebRTC(roomId) {
         throw err;
       }
     },
-    [initSocket]
+    [initSocket, ensureAudioContext]
   );
 
   /**
@@ -392,10 +453,15 @@ export function useWebRTC(roomId) {
           localStreamRef.current.addTrack(newTrack);
           setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
           peerConnectionsRef.current.forEach((pc) => {
-            pc.addTrack(newTrack, localStreamRef.current);
+            const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+            if (sender) {
+              sender.replaceTrack(newTrack);
+            } else {
+              pc.addTrack(newTrack, localStreamRef.current);
+            }
           });
           setIsVideoOff(false);
-    setIsScreenSharing(false);
+          setIsScreenSharing(false);
           renegotiateAll();
         })
         .catch((err) => {
@@ -405,8 +471,44 @@ export function useWebRTC(roomId) {
       return;
     }
 
-    videoTrack.enabled = !videoTrack.enabled;
-    setIsVideoOff(!videoTrack.enabled);
+    if (videoTrack.enabled) {
+      videoTrack.stop();
+      localStreamRef.current.removeTrack(videoTrack);
+      peerConnectionsRef.current.forEach((pc) => {
+        const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+        if (sender) {
+          sender.replaceTrack(null);
+        }
+      });
+      setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
+      setIsVideoOff(true);
+      renegotiateAll();
+      return;
+    }
+
+    navigator.mediaDevices
+      .getUserMedia({ video: true })
+      .then((cameraStream) => {
+        const newTrack = cameraStream.getVideoTracks()[0];
+        if (!newTrack) return;
+        localStreamRef.current.addTrack(newTrack);
+        setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
+        peerConnectionsRef.current.forEach((pc) => {
+          const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+          if (sender) {
+            sender.replaceTrack(newTrack);
+          } else {
+            pc.addTrack(newTrack, localStreamRef.current);
+          }
+        });
+        setIsVideoOff(false);
+        setIsScreenSharing(false);
+        renegotiateAll();
+      })
+      .catch((err) => {
+        console.error("Error enabling camera:", err);
+        setError(err.message);
+      });
   }, [renegotiateAll]);
 
   /**
@@ -422,6 +524,7 @@ export function useWebRTC(roomId) {
     // Close all peer connections
     peerConnectionsRef.current.forEach((pc) => pc.close());
     peerConnectionsRef.current.clear();
+    peerMetaRef.current.clear();
 
     // Disconnect socket
     if (socketRef.current) {
@@ -435,7 +538,8 @@ export function useWebRTC(roomId) {
     setIsConnected(false);
     setIsMuted(false);
     setIsVideoOff(false);
-  }, [roomId]);
+    playCue("leave");
+  }, [roomId, playCue]);
 
   // Cleanup on unmount
   useEffect(() => {

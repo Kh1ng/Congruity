@@ -12,7 +12,6 @@ import ServerProfilePanel from "./ServerProfilePanel";
 import MembersPanel from "./MembersPanel";
 import DockStack from "./DockStack";
 import SettingsView from "./SettingsView";
-import SubagentPanel from "./SubagentPanel";
 import AppShell from "./AppShell";
 import { registerPanel, listPanelsByDock } from "@/modules";
 
@@ -25,6 +24,39 @@ function Home() {
   const [collapseChannels, setCollapseChannels] = useState(false);
   const [collapseSocial, setCollapseSocial] = useState(true);
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
+
+  const applyLayoutPreset = (preset) => {
+    const next = {
+      balanced: { collapseServers: false, collapseChannels: false, collapseSocial: true },
+      focus: { collapseServers: true, collapseChannels: true, collapseSocial: true },
+      social: { collapseServers: false, collapseChannels: false, collapseSocial: false },
+    }[preset];
+
+    if (!next) return;
+    setCollapseServers(next.collapseServers);
+    setCollapseChannels(next.collapseChannels);
+    setCollapseSocial(next.collapseSocial);
+  };
+
+  const handleCopyInvite = async () => {
+    if (!selectedServer?.invite_code) return;
+    try {
+      await navigator.clipboard.writeText(selectedServer.invite_code);
+    } catch {
+      // ignore clipboard failures
+    }
+  };
+
+  const resetLayout = () => {
+    localStorage.removeItem("layoutPrefs");
+    ["left", "right"].forEach((dockId) => {
+      localStorage.removeItem(`dock:${dockId}:order`);
+      localStorage.removeItem(`dock:${dockId}:sizes`);
+    });
+    setCollapseServers(false);
+    setCollapseChannels(false);
+    setCollapseSocial(true);
+  };
 
   const voiceSession = useWebRTC(activeVoiceChannel?.id);
   const { memberMap } = useServerMembers(selectedServer?.id);
@@ -166,6 +198,9 @@ function Home() {
         <SettingsView
           server={selectedServer}
           serverId={selectedServer?.id}
+          onServerUpdate={(next) =>
+            setSelectedServer((prev) => (prev ? { ...prev, ...next } : prev))
+          }
         />
       ),
     });
@@ -179,19 +214,12 @@ function Home() {
       ),
     });
 
-    registerPanel("subagents", {
-      dock: "right",
-      title: "Subagents",
-      order: 6,
-      content: <SubagentPanel />,
-    });
-
     return listPanelsByDock("right");
   }, [memberMap, selectedFriend, selectedServer]);
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
+    <div className="flex h-full min-h-0 flex-col gap-3 pb-24">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="text-lg font-semibold text-slate-100">
             {selectedServer?.name || "Home"}
@@ -200,7 +228,17 @@ function Home() {
             {selectedChannel ? `#${selectedChannel.name}` : "Select a channel"}
           </div>
         </div>
-        <div className="relative text-xs text-slate-400">
+        <div className="flex items-center gap-3">
+          {selectedServer?.invite_code && (
+            <button
+              onClick={handleCopyInvite}
+              className="text-xs text-slate-400 hover:text-gruvbox-orange"
+              title="Copy invite code"
+            >
+              Invite
+            </button>
+          )}
+          <div className="relative text-xs text-slate-400 z-50">
           <button
             onClick={() => setShowLayoutMenu((v) => !v)}
             className="inline-flex items-center gap-1.5 hover:text-gruvbox-orange"
@@ -209,7 +247,7 @@ function Home() {
             Layout
           </button>
           {showLayoutMenu && (
-            <div className="absolute right-0 mt-2 w-40 rounded border border-slate-800 bg-slate-950/90 p-2 shadow-lg">
+            <div className="absolute right-0 mt-2 w-44 rounded border border-slate-800 bg-slate-950/95 p-2 shadow-lg z-50">
               <button
                 onClick={() => setCollapseServers((v) => !v)}
                 className="block w-full text-left text-xs text-slate-300 hover:text-gruvbox-orange"
@@ -228,35 +266,67 @@ function Home() {
               >
                 {collapseSocial ? "Show Social" : "Hide Social"}
               </button>
+              <div className="mt-2 border-t border-slate-800 pt-2">
+                <div className="text-[0.65rem] uppercase tracking-wide text-slate-500">
+                  Presets
+                </div>
+                <button
+                  onClick={() => applyLayoutPreset("balanced")}
+                  className="mt-1 block w-full text-left text-xs text-slate-300 hover:text-gruvbox-orange"
+                >
+                  Balanced
+                </button>
+                <button
+                  onClick={() => applyLayoutPreset("focus")}
+                  className="mt-1 block w-full text-left text-xs text-slate-300 hover:text-gruvbox-orange"
+                >
+                  Focus
+                </button>
+                <button
+                  onClick={() => applyLayoutPreset("social")}
+                  className="mt-1 block w-full text-left text-xs text-slate-300 hover:text-gruvbox-orange"
+                >
+                  Social
+                </button>
+              </div>
+              <button
+                onClick={resetLayout}
+                className="mt-2 block w-full text-left text-xs text-slate-300 hover:text-gruvbox-orange"
+              >
+                Reset Layout
+              </button>
             </div>
           )}
         </div>
+        </div>
       </div>
 
-      <AppShell
-        layout={layoutPreset}
-        regions={{
-          leftDock: (
-            <aside className="bg-slate-950/40 border border-slate-800 rounded p-2 min-h-0 h-full">
-              <DockStack dockId="left" panels={leftPanels} />
-            </aside>
-          ),
-          workspace: (
-            <main className="bg-slate-950/40 border border-slate-800 rounded p-3 flex flex-col">
-              {renderChannelPanel}
-            </main>
-          ),
-          rightDock: (
-            <aside className="bg-slate-950/40 border border-slate-800 rounded p-2 min-h-0 h-full">
-              {collapseSocial ? (
-                <div className="text-xs text-slate-500">Social</div>
-              ) : (
-                <DockStack dockId="right" panels={rightPanels} />
-              )}
-            </aside>
-          ),
-        }}
-      />
+      <div className="flex-1 min-h-0">
+        <AppShell
+          layout={layoutPreset}
+          regions={{
+            leftDock: (
+              <aside className="bg-slate-950/40 border border-slate-800 rounded p-2 min-h-0 h-full">
+                <DockStack dockId="left" panels={leftPanels} />
+              </aside>
+            ),
+            workspace: (
+              <main className="bg-slate-950/40 border border-slate-800 rounded p-3 flex flex-col min-h-0">
+                {renderChannelPanel}
+              </main>
+            ),
+            rightDock: (
+              <aside className="bg-slate-950/40 border border-slate-800 rounded p-2 min-h-0 h-full">
+                {collapseSocial ? (
+                  <div className="text-xs text-slate-500">Social</div>
+                ) : (
+                  <DockStack dockId="right" panels={rightPanels} />
+                )}
+              </aside>
+            ),
+          }}
+        />
+      </div>
 
       <VoiceDock channel={activeVoiceChannel} voice={voiceSession} />
     </div>
