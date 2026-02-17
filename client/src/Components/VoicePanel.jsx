@@ -62,6 +62,7 @@ function VoicePanel({ channel, voice, memberMap }) {
   });
   const [hiddenStreams, setHiddenStreams] = React.useState(() => new Set());
   const [focusedStreamId, setFocusedStreamId] = React.useState(null);
+  const stageInitRef = useRef(false);
 
   useEffect(() => {
     localStorage.setItem("voice:autoVideo", String(autoVideo));
@@ -135,29 +136,36 @@ function VoicePanel({ channel, voice, memberMap }) {
     return entries;
   }, [memberMap, user, roomUsers, localSocketId, isMuted, remoteStreamMap, localStream]);
 
-  const videoParticipants = participants.filter(
-    (participant) =>
-      participant.stream &&
-      participant.stream.getVideoTracks().some((track) => track.readyState === "live" && track.enabled)
+  const videoParticipants = useMemo(
+    () =>
+      participants.filter(
+        (participant) =>
+          participant.stream &&
+          participant.stream.getVideoTracks().some((track) => track.readyState === "live" && track.enabled)
+      ),
+    [participants]
   );
 
-  const visibleVideoParticipants = videoParticipants.filter(
-    (participant) => !hiddenStreams.has(participant.id)
+  const visibleVideoParticipants = useMemo(
+    () => videoParticipants.filter((participant) => !hiddenStreams.has(participant.id)),
+    [videoParticipants, hiddenStreams]
   );
 
   const hasActiveVideo = visibleVideoParticipants.length > 0;
   const showVideoStage = autoVideo && hasActiveVideo;
 
   useEffect(() => {
-    if (!showVideoStage) return;
+    if (!showVideoStage) {
+      stageInitRef.current = false;
+      return;
+    }
+    if (stageInitRef.current) return;
     const defaults = visibleVideoParticipants
       .filter((participant) => !participant.isLocal)
       .map((participant) => participant.id);
-    setStageStreamIds((prev) => {
-      if (prev.length) return prev;
-      if (!defaults.length) return prev;
-      return defaults;
-    });
+    if (!defaults.length) return;
+    setStageStreamIds(defaults);
+    stageInitRef.current = true;
   }, [showVideoStage, visibleVideoParticipants, setStageStreamIds]);
 
   const stageParticipants = focusedStreamId
