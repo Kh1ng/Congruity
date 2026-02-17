@@ -6,7 +6,7 @@ function AppShell({ layout, regions }) {
     <DockLayout
       layout={layout || DEFAULT_DOCK_PRESET}
       regions={regions}
-      className="h-[calc(100vh-240px)]"
+      className="h-full min-h-0"
     />
   );
 }
