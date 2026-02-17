@@ -234,67 +234,6 @@ function VoicePanel({ channel, voice, memberMap }) {
           </select>
         </label>
       </div>
-      </div>
-      <div className="flex flex-wrap gap-3 text-xs text-slate-400 mb-3">
-        <label className="flex items-center gap-2">
-          Cam
-          <select
-            value={`${videoConstraints.width}x${videoConstraints.height}`}
-            onChange={(e) => {
-              const [width, height] = e.target.value.split("x").map(Number);
-              setVideoConstraints((prev) => ({ ...prev, width, height }));
-            }}
-            className="bg-slate-900/60 border border-slate-800 rounded px-2 py-1"
-          >
-            <option value="640x360">640x360</option>
-            <option value="1280x720">1280x720</option>
-            <option value="1920x1080">1920x1080</option>
-          </select>
-        </label>
-        <label className="flex items-center gap-2">
-          Cam FPS
-          <select
-            value={videoConstraints.frameRate}
-            onChange={(e) =>
-              setVideoConstraints((prev) => ({ ...prev, frameRate: Number(e.target.value) }))
-            }
-            className="bg-slate-900/60 border border-slate-800 rounded px-2 py-1"
-          >
-            <option value={24}>24</option>
-            <option value={30}>30</option>
-            <option value={60}>60</option>
-          </select>
-        </label>
-        <label className="flex items-center gap-2">
-          Share
-          <select
-            value={`${screenConstraints.width}x${screenConstraints.height}`}
-            onChange={(e) => {
-              const [width, height] = e.target.value.split("x").map(Number);
-              setScreenConstraints((prev) => ({ ...prev, width, height }));
-            }}
-            className="bg-slate-900/60 border border-slate-800 rounded px-2 py-1"
-          >
-            <option value="1280x720">1280x720</option>
-            <option value="1920x1080">1920x1080</option>
-            <option value="2560x1440">2560x1440</option>
-          </select>
-        </label>
-        <label className="flex items-center gap-2">
-          Share FPS
-          <select
-            value={screenConstraints.frameRate}
-            onChange={(e) =>
-              setScreenConstraints((prev) => ({ ...prev, frameRate: Number(e.target.value) }))
-            }
-            className="bg-slate-900/60 border border-slate-800 rounded px-2 py-1"
-          >
-            <option value={15}>15</option>
-            <option value={30}>30</option>
-            <option value={60}>60</option>
-          </select>
-        </label>
-      </div>
       {error && <div className="text-red-500 mb-2">{error}</div>}
 
       {showVideoStage && (
