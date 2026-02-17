@@ -83,34 +83,24 @@ function ChannelList({
                   <span>{ch.name}</span>
                 </button>
                 {selectedChannel?.id === ch.id &&
-                  activeVoiceChannelId === ch.id && (
-                    <div className="mt-2 rounded border border-slate-800 bg-slate-950/40 p-2">
-                      <div className="text-[0.65rem] uppercase tracking-wide text-slate-400 mb-1">
-                        Voice Channel
-                      </div>
-                      <div className="text-xs text-slate-400">
-                        {roomUsers?.length || 0} active
-                      </div>
-                      <div className="mt-2 space-y-1 text-xs text-slate-300">
-                        {(roomUsers || []).map((entry) => {
-                          const userId = entry?.userId || entry;
-                          const profile = memberMap?.[userId]?.profile || {};
-                          const name =
-                            profile.display_name ||
-                            profile.username ||
-                            userId ||
-                            "Unknown";
-                          return (
-                            <div
-                              key={userId}
-                              className="flex items-center gap-2"
-                            >
-                              <span className="h-2 w-2 rounded-full bg-slate-500" />
-                              <span>{name}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
+                  activeVoiceChannelId === ch.id &&
+                  (roomUsers?.length || 0) > 0 && (
+                    <div className="ml-6 mt-1 space-y-1 text-xs text-slate-300">
+                      {(roomUsers || []).map((entry) => {
+                        const userId = entry?.userId || entry;
+                        const profile = memberMap?.[userId]?.profile || {};
+                        const name =
+                          profile.display_name ||
+                          profile.username ||
+                          userId ||
+                          "Unknown";
+                        return (
+                          <div key={userId} className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-slate-500" />
+                            <span>{name}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
               </li>
