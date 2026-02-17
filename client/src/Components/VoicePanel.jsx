@@ -12,18 +12,25 @@ function ParticipantMedia({ stream, isLocal }) {
   const videoRef = useRef(null);
   const audioRef = useRef(null);
 
+  const hasLiveVideo =
+    stream?.getVideoTracks().some((track) => track.readyState === "live" && track.enabled) ||
+    false;
+  const hasLiveAudio =
+    stream?.getAudioTracks().some((track) => track.readyState === "live" && track.enabled) ||
+    false;
+
   useEffect(() => {
-    if (videoRef.current && stream && stream.getVideoTracks().length) {
+    if (videoRef.current && stream && hasLiveVideo) {
       videoRef.current.srcObject = stream;
     }
-    if (audioRef.current && stream && stream.getAudioTracks().length) {
+    if (audioRef.current && stream && hasLiveAudio) {
       audioRef.current.srcObject = stream;
     }
-  }, [stream]);
+  }, [stream, hasLiveVideo, hasLiveAudio]);
 
   return (
     <>
-      {stream && stream.getVideoTracks().length > 0 && (
+      {stream && hasLiveVideo && (
         <video
           ref={videoRef}
           autoPlay
@@ -32,9 +39,7 @@ function ParticipantMedia({ stream, isLocal }) {
           className="h-full w-full rounded-full object-cover"
         />
       )}
-      {stream && stream.getAudioTracks().length > 0 && (
-        <audio ref={audioRef} autoPlay muted={isLocal} />
-      )}
+      {stream && hasLiveAudio && <audio ref={audioRef} autoPlay muted={isLocal} />}
     </>
   );
 }
@@ -116,7 +121,7 @@ function VoicePanel({ channel, voice, memberMap }) {
           const meterKey = participant.isLocal ? "local" : participant.id;
           const level = audioLevels?.[meterKey] || 0;
           const waveform = audioWaveforms?.[meterKey] || [];
-          const isSpeaking = level > 0.04;
+          const isSpeaking = level > 0.01;
 
           const points = waveform.length
             ? waveform
