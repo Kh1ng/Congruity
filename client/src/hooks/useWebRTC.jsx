@@ -65,6 +65,7 @@ export function useWebRTC(roomId) {
   const localStreamRef = useRef(null);
   const audioContextRef = useRef(null);
   const audioEnabledRef = useRef(false);
+  const meterActiveRef = useRef(false);
 
   const ensureAudioContext = useCallback(async () => {
     if (!audioEnabledRef.current) return null;
@@ -707,14 +708,19 @@ export function useWebRTC(roomId) {
     };
 
     if (isConnected) {
-      start();
+      if (!meterActiveRef.current) {
+        meterActiveRef.current = true;
+        start();
+      }
     } else {
+      meterActiveRef.current = false;
       setAudioLevels({});
       setAudioWaveforms({});
     }
 
     return () => {
       isActive = false;
+      meterActiveRef.current = false;
       if (rafId) cancelAnimationFrame(rafId);
     };
   }, [isConnected, remoteStreams, ensureAudioContext]);
