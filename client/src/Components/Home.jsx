@@ -63,7 +63,13 @@ function Home() {
   const renderChannelPanel = useMemo(() => {
     if (!selectedChannel) return <Messages channelId={null} />;
     if (selectedChannel.type === "voice" || selectedChannel.type === "video") {
-      return <VoicePanel channel={selectedChannel} voice={voiceSession} />;
+      return (
+        <VoicePanel
+          channel={selectedChannel}
+          voice={voiceSession}
+          memberMap={memberMap}
+        />
+      );
     }
     return (
       <Messages channelId={selectedChannel.id} memberMap={memberMap} />

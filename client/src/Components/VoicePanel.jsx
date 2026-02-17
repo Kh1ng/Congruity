@@ -1,9 +1,15 @@
-import React, { useEffect, useRef } from "react";
+import React, { useMemo } from "react";
 import { Mic, MicOff, MonitorUp, Phone, PhoneOff, Video, VideoOff } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
-function VoicePanel({ channel, voice }) {
-  const localVideoRef = useRef(null);
-  const remoteVideoRef = useRef(null);
+function getInitials(name) {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/).slice(0, 2);
+  return parts.map((part) => part[0]?.toUpperCase() || "").join("") || "?";
+}
+
+function VoicePanel({ channel, voice, memberMap }) {
+  const { user } = useAuth();
 
   if (!channel) {
     return <div className="text-slate-400">Select a voice channel to join.</div>;
@@ -23,20 +29,46 @@ function VoicePanel({ channel, voice }) {
     toggleVideo,
     startScreenShare,
     stopScreenShare,
+    roomUsers,
+    localSocketId,
   } = voice;
 
-  useEffect(() => {
-    if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream;
-    }
-  }, [localStream]);
+  void localStream;
 
-  useEffect(() => {
-    const firstRemote = remoteStreams?.[0]?.[1];
-    if (remoteVideoRef.current && firstRemote) {
-      remoteVideoRef.current.srcObject = firstRemote;
-    }
-  }, [remoteStreams]);
+  const remoteStreamMap = useMemo(() => new Map(remoteStreams || []), [remoteStreams]);
+
+  const participants = useMemo(() => {
+    const entries = [];
+    const localProfile = memberMap?.[user?.id]?.profile || {};
+    const localName =
+      localProfile.display_name || localProfile.username || user?.email || "You";
+    entries.push({
+      id: "local",
+      name: localName,
+      avatar: localProfile.avatar_url || user?.user_metadata?.avatar_url,
+      isLocal: true,
+      isMuted,
+    });
+
+    (roomUsers || [])
+      .filter((userEntry) => (userEntry.socketId || userEntry) !== localSocketId)
+      .forEach((userEntry) => {
+        const socketId = userEntry.socketId || userEntry;
+        const userId = userEntry.userId;
+        const profile = userId ? memberMap?.[userId]?.profile || {} : {};
+        const name =
+          profile.display_name || profile.username || userId || socketId.slice(0, 6);
+        entries.push({
+          id: socketId,
+          name,
+          avatar: profile.avatar_url,
+          isLocal: false,
+          stream: remoteStreamMap.get(socketId),
+        });
+      });
+
+    return entries;
+  }, [memberMap, user, roomUsers, localSocketId, isMuted, remoteStreamMap]);
 
   return (
     <div className="flex flex-col h-full">
@@ -44,26 +76,54 @@ function VoicePanel({ channel, voice }) {
       <div className="text-base font-semibold mb-3">#{channel.name}</div>
       {error && <div className="text-red-500 mb-2">{error}</div>}
 
-      <div className="flex gap-4 mb-4">
-        <div>
-          <div className="text-xs text-slate-400 mb-1">You</div>
-          <video
-            ref={localVideoRef}
-            autoPlay
-            playsInline
-            muted
-            className="w-64 h-40 bg-black rounded"
-          />
-        </div>
-        <div>
-          <div className="text-xs text-slate-400 mb-1">Remote</div>
-          <video
-            ref={remoteVideoRef}
-            autoPlay
-            playsInline
-            className="w-64 h-40 bg-black rounded"
-          />
-        </div>
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-4 mb-4">
+        {participants.map((participant) => {
+          const initials = getInitials(participant.name);
+          const isSpeaking = participant.isLocal
+            ? isConnected && !isMuted
+            : !!participant.stream;
+          return (
+            <div
+              key={participant.id}
+              className="flex flex-col items-center gap-2 rounded-lg border border-slate-800 bg-slate-950/40 p-3"
+            >
+              <div
+                className={`relative flex h-16 w-16 items-center justify-center rounded-full border-2 ${
+                  isSpeaking ? "border-gruvbox-orange" : "border-slate-700"
+                } bg-slate-900 text-lg font-semibold text-slate-100`}
+              >
+                {participant.avatar ? (
+                  <img
+                    src={participant.avatar}
+                    alt={participant.name}
+                    className="h-full w-full rounded-full object-cover"
+                  />
+                ) : (
+                  initials
+                )}
+                {participant.isLocal && (
+                  <span className="absolute -bottom-1 -right-1 rounded-full bg-slate-950 p-1 text-xs">
+                    {isMuted ? <MicOff size={12} /> : <Mic size={12} />}
+                  </span>
+                )}
+              </div>
+              <div className="text-sm font-medium text-slate-100 text-center">
+                {participant.isLocal ? "You" : participant.name}
+              </div>
+              <div className="text-xs text-slate-400">
+                {participant.isLocal
+                  ? isMuted
+                    ? "Muted"
+                    : isConnected
+                      ? "Speaking"
+                      : "Offline"
+                  : isSpeaking
+                    ? "Speaking"
+                    : "Idle"}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       <div className="flex items-center gap-2 flex-wrap">
