@@ -60,6 +60,7 @@ export function useWebRTC(roomId) {
   const localSocketIdRef = useRef(null);
   const peerConnectionsRef = useRef(new Map());
   const peerMetaRef = useRef(new Map());
+  const pendingCandidatesRef = useRef(new Map());
   const localStreamRef = useRef(null);
   const audioContextRef = useRef(null);
   const audioEnabledRef = useRef(false);
@@ -155,6 +156,7 @@ export function useWebRTC(roomId) {
       peerMetaRef.current.set(userId, {
         makingOffer: false,
         polite,
+        remoteDescriptionSet: false,
       });
 
       // Add local tracks
@@ -294,6 +296,18 @@ export function useWebRTC(roomId) {
       }
 
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      if (meta) meta.remoteDescriptionSet = true;
+
+      const pending = pendingCandidatesRef.current.get(from) || [];
+      for (const candidate of pending) {
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (err) {
+          console.warn("Failed to add queued ICE", err);
+        }
+      }
+      pendingCandidatesRef.current.delete(from);
+
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       socket.emit("answer", { answer, to: from, roomId, from: socket.id });
@@ -302,15 +316,39 @@ export function useWebRTC(roomId) {
     socket.on("answer", async ({ answer, from }) => {
       console.log("Received answer from:", from);
       const pc = peerConnectionsRef.current.get(from);
+      const meta = peerMetaRef.current.get(from);
       if (pc) {
         await pc.setRemoteDescription(new RTCSessionDescription(answer));
+        if (meta) meta.remoteDescriptionSet = true;
+
+        const pending = pendingCandidatesRef.current.get(from) || [];
+        for (const candidate of pending) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (err) {
+            console.warn("Failed to add queued ICE", err);
+          }
+        }
+        pendingCandidatesRef.current.delete(from);
       }
     });
 
     socket.on("ice-candidate", async ({ candidate, from }) => {
       const pc = peerConnectionsRef.current.get(from);
-      if (pc && candidate) {
+      const meta = peerMetaRef.current.get(from);
+      if (!candidate) return;
+
+      if (!pc || !meta?.remoteDescriptionSet) {
+        const pending = pendingCandidatesRef.current.get(from) || [];
+        pending.push(candidate);
+        pendingCandidatesRef.current.set(from, pending);
+        return;
+      }
+
+      try {
         await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (err) {
+        console.warn("Failed to add ICE", err);
       }
     });
 
