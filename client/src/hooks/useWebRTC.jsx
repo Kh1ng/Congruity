@@ -3,7 +3,7 @@ import { io } from "socket.io-client";
 import { useAuth } from "@/hooks/useAuth";
 
 const SIGNALING_URL =
-  import.meta.env.VITE_SIGNALING_URL || "wss://100.123.69.75:3001";
+  import.meta.env.VITE_SIGNALING_URL || "ws://100.123.69.75:3001";
 const DEFAULT_SIGNALING_URL =
   typeof window !== "undefined"
     ? `${window.location.protocol === "https:" ? "wss" : "ws"}://${
