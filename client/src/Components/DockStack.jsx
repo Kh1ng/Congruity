@@ -1,3 +1,4 @@
+/* eslint-disable react/jsx-props-no-spreading */
 import React, { useEffect, useMemo, useState } from "react";
 import { GripVertical } from "lucide-react";
 import {
@@ -28,10 +29,9 @@ function DockPanel({ id, title, children }) {
 
   return (
     <div ref={setNodeRef} style={style} className="h-full flex flex-col">
-      <div
-        className="flex items-center justify-between gap-2 rounded-md border border-slate-800 bg-slate-950/70 px-2 py-0.5 text-[0.65rem] uppercase tracking-wide text-slate-400"
-      >
+      <div className="flex items-center justify-between gap-2 rounded-md border border-slate-800 bg-slate-950/70 px-2 py-0.5 text-[0.65rem] uppercase tracking-wide text-slate-400">
         <span>{title}</span>
+        {/* eslint-disable-next-line react/jsx-props-no-spreading */}
         <button
           type="button"
           className="cursor-grab text-slate-500 hover:text-gruvbox-orange"
@@ -41,6 +41,19 @@ function DockPanel({ id, title, children }) {
         >
           <GripVertical size={14} />
         </button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-auto rounded-md border border-slate-800 bg-slate-950/40 p-2 mt-1">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function DockPanelStatic({ title, children }) {
+  return (
+    <div className="h-full flex flex-col">
+      <div className="flex items-center justify-between gap-2 rounded-md border border-slate-800 bg-slate-950/70 px-2 py-0.5 text-[0.65rem] uppercase tracking-wide text-slate-400">
+        <span>{title}</span>
       </div>
       <div className="min-h-0 flex-1 overflow-auto rounded-md border border-slate-800 bg-slate-950/40 p-2 mt-1">
         {children}
@@ -62,11 +75,11 @@ function normalizeOrder(panels, storedOrder) {
   return nextOrder;
 }
 
-function DockStack({ dockId, panels }) {
+function DockStack({ dockId, panels, locked = false }) {
   const storageKey = `dock:${dockId}`;
   const panelMap = useMemo(
     () => new Map(panels.map((panel) => [panel.id, panel])),
-    [panels]
+    [panels],
   );
 
   const [order, setOrder] = useState(() => {
@@ -87,11 +100,15 @@ function DockStack({ dockId, panels }) {
       const parsed = raw ? JSON.parse(raw) : {};
       const values = Object.values(parsed);
       const hasInvalid = values.some(
-        (value) => typeof value !== "number" || Number.isNaN(value) || value < minPaneSize
+        (value) =>
+          typeof value !== "number" ||
+          Number.isNaN(value) ||
+          value < minPaneSize,
       );
       const total = values.reduce(
-        (sum, value) => (typeof value === "number" && !Number.isNaN(value) ? sum + value : sum),
-        0
+        (sum, value) =>
+          typeof value === "number" && !Number.isNaN(value) ? sum + value : sum,
+        0,
       );
       if (hasInvalid || total < minPaneSize * panels.length) {
         return {};
@@ -116,7 +133,7 @@ function DockStack({ dockId, panels }) {
 
   const orderedPanels = useMemo(
     () => order.map((id) => panelMap.get(id)).filter(Boolean),
-    [order, panelMap]
+    [order, panelMap],
   );
 
   const sizes = orderedPanels.map((panel) => {
@@ -128,7 +145,9 @@ function DockStack({ dockId, panels }) {
   const normalizedTotal = sizes.reduce((sum, value) => sum + value, 0);
   const hasCollapsed = normalizedTotal < minPaneSize * orderedPanels.length;
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+  );
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
@@ -155,33 +174,55 @@ function DockStack({ dockId, panels }) {
 
   if (!orderedPanels.length) return null;
 
+  const PanelComponent = locked ? DockPanelStatic : DockPanel;
+
   const panelContent = (
     <SplitPane
       split="horizontal"
       sizes={hasCollapsed ? orderedPanels.map(() => 160) : sizes}
-      onChange={handleSizeChange}
-      resizerSize={6}
-      allowResize
+      onChange={locked ? undefined : handleSizeChange}
+      resizerSize={locked ? 0 : 6}
+      allowResize={!locked}
       className="h-full min-h-0"
       style={{ height: "100%" }}
     >
       {orderedPanels.map((panel) => (
         <Pane key={panel.id} minSize={minPaneSize} className="min-h-0">
-          <DockPanel id={panel.id} title={panel.title}>
+          <PanelComponent id={panel.id} title={panel.title}>
             {panel.content}
-          </DockPanel>
+          </PanelComponent>
         </Pane>
       ))}
     </SplitPane>
   );
 
+  if (locked) {
+    return orderedPanels.length === 1 ? (
+      <PanelComponent title={orderedPanels[0].title}>
+        {orderedPanels[0].content}
+      </PanelComponent>
+    ) : (
+      panelContent
+    );
+  }
+
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={orderedPanels.map((panel) => panel.id)} strategy={verticalListSortingStrategy}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <SortableContext
+        items={orderedPanels.map((panel) => panel.id)}
+        strategy={verticalListSortingStrategy}
+      >
         {orderedPanels.length === 1 ? (
-          <DockPanel id={orderedPanels[0].id} title={orderedPanels[0].title}>
+          <PanelComponent
+            id={orderedPanels[0].id}
+            title={orderedPanels[0].title}
+          >
             {orderedPanels[0].content}
-          </DockPanel>
+          </PanelComponent>
         ) : (
           panelContent
         )}

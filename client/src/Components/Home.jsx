@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { LayoutGrid, Settings } from "lucide-react";
-import { useWebRTC, useServerMembers } from "@/hooks";
+import { Settings } from "lucide-react";
+import { useWebRTC, useServerMembers } from "../hooks";
 import ServerList from "./ServerList";
 import ChannelList from "./ChannelList";
 import Messages from "./Message";
@@ -8,7 +8,7 @@ import VoicePanel from "./VoicePanel";
 import DockStack from "./DockStack";
 import SettingsView from "./SettingsView";
 import AppShell from "./AppShell";
-import { registerPanel, listPanelsByDock } from "@/modules";
+import { registerPanel, listPanelsByDock } from "../modules";
 
 function Home() {
   const [selectedServer, setSelectedServer] = useState(null);
@@ -17,18 +17,7 @@ function Home() {
   const [collapseServers, setCollapseServers] = useState(false);
   const [collapseChannels, setCollapseChannels] = useState(false);
   const [collapseSocial, setCollapseSocial] = useState(true);
-  const [showLayoutMenu, setShowLayoutMenu] = useState(false);
-
-  const resetLayout = () => {
-    localStorage.removeItem("layoutPrefs");
-    ["left", "right"].forEach((dockId) => {
-      localStorage.removeItem(`dock:${dockId}:order`);
-      localStorage.removeItem(`dock:${dockId}:sizes`);
-    });
-    setCollapseServers(false);
-    setCollapseChannels(false);
-    setCollapseSocial(true);
-  };
+  const [layoutLocked, setLayoutLocked] = useState(true);
 
   const voiceSession = useWebRTC(activeVoiceChannel?.id);
   const { memberMap } = useServerMembers(selectedServer?.id);
@@ -41,6 +30,7 @@ function Home() {
         setCollapseServers(!!prefs.collapseServers);
         setCollapseChannels(!!prefs.collapseChannels);
         setCollapseSocial(!!prefs.collapseSocial);
+        setLayoutLocked(prefs.layoutLocked !== false);
       } catch {
         // ignore
       }
@@ -50,9 +40,14 @@ function Home() {
   useEffect(() => {
     localStorage.setItem(
       "layoutPrefs",
-      JSON.stringify({ collapseServers, collapseChannels, collapseSocial })
+      JSON.stringify({
+        collapseServers,
+        collapseChannels,
+        collapseSocial,
+        layoutLocked,
+      }),
     );
-  }, [collapseServers, collapseChannels, collapseSocial]);
+  }, [collapseServers, collapseChannels, collapseSocial, layoutLocked]);
 
   const renderChannelPanel = useMemo(() => {
     if (!selectedChannel) return <Messages channelId={null} />;
@@ -68,12 +63,12 @@ function Home() {
     return <Messages channelId={selectedChannel.id} memberMap={memberMap} />;
   }, [selectedChannel, voiceSession, memberMap]);
 
-  const leftDockWidth =
-    collapseServers && collapseChannels
-      ? "80px"
-      : collapseServers || collapseChannels
-        ? "220px"
-        : "320px";
+  let leftDockWidth = "320px";
+  if (collapseServers && collapseChannels) {
+    leftDockWidth = "80px";
+  } else if (collapseServers || collapseChannels) {
+    leftDockWidth = "220px";
+  }
 
   const rightDockWidth = collapseSocial ? "80px" : "300px";
 
@@ -92,7 +87,7 @@ function Home() {
         ],
       },
     }),
-    [leftDockWidth, rightDockWidth]
+    [leftDockWidth, rightDockWidth],
   );
 
   const leftPanels = useMemo(() => {
@@ -124,12 +119,17 @@ function Home() {
           selectedChannelId={selectedChannel?.id}
           selectedChannel={selectedChannel}
           memberMap={memberMap}
+          roomUsers={voiceSession.roomUsers}
+          activeVoiceChannelId={activeVoiceChannel?.id}
           onSelectChannel={(channel) => {
             setSelectedChannel(channel);
             if (channel.type === "voice" || channel.type === "video") {
               setActiveVoiceChannel(channel);
               if (!voiceSession.isConnected) {
-                voiceSession.startCall({ video: channel.type === "video", audio: true });
+                voiceSession.startCall({
+                  video: channel.type === "video",
+                  audio: true,
+                });
               }
             }
           }}
@@ -138,10 +138,14 @@ function Home() {
     });
 
     return listPanelsByDock("left");
-  }, [collapseChannels, collapseServers, selectedServer?.id, selectedChannel?.id]);
+  }, [
+    collapseChannels,
+    collapseServers,
+    selectedServer?.id,
+    selectedChannel?.id,
+  ]);
 
   const rightPanels = useMemo(() => {
-
     registerPanel("settings", {
       dock: "right",
       title: "Settings",
@@ -153,6 +157,18 @@ function Home() {
           voice={voiceSession}
           voiceChannel={activeVoiceChannel}
           memberMap={memberMap}
+          layoutPrefs={{
+            collapseServers,
+            collapseChannels,
+            collapseSocial,
+            layoutLocked,
+          }}
+          onLayoutPrefsChange={(prefs) => {
+            setCollapseServers(!!prefs.collapseServers);
+            setCollapseChannels(!!prefs.collapseChannels);
+            setCollapseSocial(!!prefs.collapseSocial);
+            setLayoutLocked(prefs.layoutLocked !== false);
+          }}
         />
       ),
     });
@@ -171,49 +187,15 @@ function Home() {
             {selectedChannel ? `#${selectedChannel.name}` : "Select a channel"}
           </div>
         </div>
-        <div className="relative flex items-center gap-3 text-xs text-slate-400">
+        <div className="flex items-center gap-3 text-xs text-slate-400">
           <button
+            type="button"
             onClick={() => setCollapseSocial(false)}
             className="inline-flex items-center gap-1.5 hover:text-gruvbox-orange"
           >
             <Settings size={14} />
             Settings
           </button>
-          <button
-            onClick={() => setShowLayoutMenu((v) => !v)}
-            className="inline-flex items-center gap-1.5 hover:text-gruvbox-orange"
-          >
-            <LayoutGrid size={14} />
-            Layout
-          </button>
-          {showLayoutMenu && (
-            <div className="absolute right-0 mt-2 w-40 rounded border border-slate-800 bg-slate-950/90 p-2 shadow-lg">
-              <button
-                onClick={() => setCollapseServers((v) => !v)}
-                className="block w-full text-left text-xs text-slate-300 hover:text-gruvbox-orange"
-              >
-                {collapseServers ? "Show Servers" : "Hide Servers"}
-              </button>
-              <button
-                onClick={() => setCollapseChannels((v) => !v)}
-                className="mt-1 block w-full text-left text-xs text-slate-300 hover:text-gruvbox-orange"
-              >
-                {collapseChannels ? "Show Channels" : "Hide Channels"}
-              </button>
-              <button
-                onClick={() => setCollapseSocial((v) => !v)}
-                className="mt-1 block w-full text-left text-xs text-slate-300 hover:text-gruvbox-orange"
-              >
-                {collapseSocial ? "Show Settings" : "Hide Settings"}
-              </button>
-              <button
-                onClick={resetLayout}
-                className="mt-2 block w-full text-left text-xs text-slate-300 hover:text-gruvbox-orange"
-              >
-                Reset Layout
-              </button>
-            </div>
-          )}
         </div>
       </div>
 
@@ -223,7 +205,11 @@ function Home() {
           regions={{
             leftDock: (
               <aside className="bg-slate-950/40 border border-slate-800 rounded p-2 min-h-0 h-full">
-                <DockStack dockId="left" panels={leftPanels} />
+                <DockStack
+                  dockId="left"
+                  panels={leftPanels}
+                  locked={layoutLocked}
+                />
               </aside>
             ),
             workspace: (
@@ -236,7 +222,11 @@ function Home() {
                 {collapseSocial ? (
                   <div className="text-xs text-slate-500">Settings</div>
                 ) : (
-                  <DockStack dockId="right" panels={rightPanels} />
+                  <DockStack
+                    dockId="right"
+                    panels={rightPanels}
+                    locked={layoutLocked}
+                  />
                 )}
               </aside>
             ),

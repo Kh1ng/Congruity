@@ -6,6 +6,7 @@ const DEFAULT_LAYOUT = {
   collapseServers: false,
   collapseChannels: false,
   collapseSocial: true,
+  layoutLocked: true,
 };
 
 const PRESETS = {
@@ -34,10 +35,20 @@ const PRESETS = {
   },
 };
 
-function SettingsView({ server, serverId, voice, voiceChannel, memberMap }) {
+function SettingsView({
+  server,
+  serverId,
+  voice,
+  voiceChannel,
+  memberMap,
+  layoutPrefs: externalLayoutPrefs,
+  onLayoutPrefsChange,
+}) {
   const [layoutPrefs, setLayoutPrefs] = useState(DEFAULT_LAYOUT);
+  const effectivePrefs = externalLayoutPrefs || layoutPrefs;
 
   useEffect(() => {
+    if (externalLayoutPrefs) return;
     const raw = localStorage.getItem("layoutPrefs");
     if (!raw) return;
     try {
@@ -49,30 +60,45 @@ function SettingsView({ server, serverId, voice, voiceChannel, memberMap }) {
     } catch {
       // ignore malformed settings
     }
-  }, []);
+  }, [externalLayoutPrefs]);
 
   useEffect(() => {
+    if (externalLayoutPrefs) return;
     localStorage.setItem("layoutPrefs", JSON.stringify(layoutPrefs));
-  }, [layoutPrefs]);
+  }, [layoutPrefs, externalLayoutPrefs]);
 
   const presetKeys = useMemo(() => Object.keys(PRESETS), []);
+
+  const setPrefs = (next) => {
+    if (onLayoutPrefsChange) {
+      onLayoutPrefsChange(next);
+      return;
+    }
+    setLayoutPrefs(next);
+  };
 
   const applyPreset = (presetKey) => {
     const preset = PRESETS[presetKey];
     if (preset) {
-      setLayoutPrefs(preset.values);
+      setPrefs({ ...effectivePrefs, ...preset.values });
     }
   };
 
   const updatePref = (key) => (event) => {
     const value = event.target.checked;
-    setLayoutPrefs((prev) => ({ ...prev, [key]: value }));
+    setPrefs({ ...effectivePrefs, [key]: value });
+  };
+
+  const toggleLayoutLock = () => {
+    setPrefs({ ...effectivePrefs, layoutLocked: !effectivePrefs.layoutLocked });
   };
 
   return (
     <div className="space-y-6">
       <section className="rounded border border-slate-800 bg-slate-950/40 p-4">
-        <h3 className="text-sm font-semibold text-slate-300">Profile & Theme</h3>
+        <h3 className="text-sm font-semibold text-slate-300">
+          Profile & Theme
+        </h3>
         <p className="mt-1 text-xs text-slate-500">
           Update your profile details and appearance presets.
         </p>
@@ -94,12 +120,16 @@ function SettingsView({ server, serverId, voice, voiceChannel, memberMap }) {
             />
           </div>
         ) : (
-          <div className="mt-3 text-xs text-slate-400">Join a voice channel to see controls.</div>
+          <div className="mt-3 text-xs text-slate-400">
+            Join a voice channel to see controls.
+          </div>
         )}
       </section>
 
       <section className="rounded border border-slate-800 bg-slate-950/40 p-4">
-        <h3 className="text-sm font-semibold text-slate-300">Server Settings</h3>
+        <h3 className="text-sm font-semibold text-slate-300">
+          Server Settings
+        </h3>
         <p className="mt-1 text-xs text-slate-500">
           Manage server configuration for the selected workspace.
         </p>
@@ -169,29 +199,48 @@ function SettingsView({ server, serverId, voice, voiceChannel, memberMap }) {
           })}
         </div>
         <div className="mt-4 space-y-2 text-xs text-slate-300">
-          <label className="flex items-center justify-between rounded border border-slate-800 bg-slate-900/50 px-3 py-2">
+          <button
+            type="button"
+            onClick={toggleLayoutLock}
+            className="w-full rounded border border-slate-800 bg-slate-900/60 px-3 py-2 text-left text-xs text-slate-300 hover:border-gruvbox-orange"
+          >
+            {effectivePrefs.layoutLocked ? "Edit layout" : "Lock layout"}
+          </button>
+          <label
+            htmlFor="collapse-servers"
+            className="flex items-center justify-between rounded border border-slate-800 bg-slate-900/50 px-3 py-2"
+          >
             <span>Collapse server list</span>
             <input
+              id="collapse-servers"
               type="checkbox"
-              checked={layoutPrefs.collapseServers}
+              checked={effectivePrefs.collapseServers}
               onChange={updatePref("collapseServers")}
               className="h-4 w-4"
             />
           </label>
-          <label className="flex items-center justify-between rounded border border-slate-800 bg-slate-900/50 px-3 py-2">
+          <label
+            htmlFor="collapse-channels"
+            className="flex items-center justify-between rounded border border-slate-800 bg-slate-900/50 px-3 py-2"
+          >
             <span>Collapse channels</span>
             <input
+              id="collapse-channels"
               type="checkbox"
-              checked={layoutPrefs.collapseChannels}
+              checked={effectivePrefs.collapseChannels}
               onChange={updatePref("collapseChannels")}
               className="h-4 w-4"
             />
           </label>
-          <label className="flex items-center justify-between rounded border border-slate-800 bg-slate-900/50 px-3 py-2">
-            <span>Collapse social dock</span>
+          <label
+            htmlFor="collapse-settings"
+            className="flex items-center justify-between rounded border border-slate-800 bg-slate-900/50 px-3 py-2"
+          >
+            <span>Collapse settings dock</span>
             <input
+              id="collapse-settings"
               type="checkbox"
-              checked={layoutPrefs.collapseSocial}
+              checked={effectivePrefs.collapseSocial}
               onChange={updatePref("collapseSocial")}
               className="h-4 w-4"
             />

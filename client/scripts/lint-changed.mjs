@@ -15,6 +15,9 @@ const cmd = [
   "*.jsx",
 ].join(" ");
 
+const rootCmd = "git rev-parse --show-toplevel";
+const repoRoot = execSync(rootCmd, { encoding: "utf8" }).trim();
+
 let output = "";
 try {
   output = execSync(cmd, { encoding: "utf8" }).trim();
@@ -26,7 +29,16 @@ const files = output
   .split("\n")
   .map((line) => line.trim())
   .filter(Boolean)
-  .filter((file) => !file.includes("node_modules"));
+  .filter((file) => !file.includes("node_modules"))
+  .map((file) => {
+    if (file.startsWith("client/")) {
+      return file.replace(/^client\//, "");
+    }
+    if (file.startsWith(repoRoot)) {
+      return file.replace(`${repoRoot}/client/`, "");
+    }
+    return file;
+  });
 
 if (!files.length) {
   console.log("No changed JS/JSX files to lint.");
