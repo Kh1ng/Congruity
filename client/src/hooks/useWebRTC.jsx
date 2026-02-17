@@ -404,9 +404,17 @@ export function useWebRTC(roomId) {
         localStreamRef.current = stream;
         setLocalStream(stream);
 
+        // Add tracks to any existing peer connections (late-joiner)
+        peerConnectionsRef.current.forEach((pc) => {
+          stream.getTracks().forEach((track) => {
+            pc.addTrack(track, stream);
+          });
+        });
+
         // Initialize socket and join room
         initSocket();
         setIsConnected(true);
+        await renegotiateAll();
       } catch (err) {
         console.error("Error starting call:", err);
         setError(err.message);
