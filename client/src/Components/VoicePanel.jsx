@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { Mic, MicOff, MonitorUp, Phone, PhoneOff, Video, VideoOff } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -6,6 +6,37 @@ function getInitials(name) {
   if (!name) return "?";
   const parts = name.trim().split(/\s+/).slice(0, 2);
   return parts.map((part) => part[0]?.toUpperCase() || "").join("") || "?";
+}
+
+function ParticipantMedia({ stream, isLocal }) {
+  const videoRef = useRef(null);
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    if (videoRef.current && stream && stream.getVideoTracks().length) {
+      videoRef.current.srcObject = stream;
+    }
+    if (audioRef.current && stream && stream.getAudioTracks().length) {
+      audioRef.current.srcObject = stream;
+    }
+  }, [stream]);
+
+  return (
+    <>
+      {stream && stream.getVideoTracks().length > 0 && (
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted={isLocal}
+          className="h-full w-full rounded-full object-cover"
+        />
+      )}
+      {stream && stream.getAudioTracks().length > 0 && (
+        <audio ref={audioRef} autoPlay muted={isLocal} />
+      )}
+    </>
+  );
 }
 
 function VoicePanel({ channel, voice, memberMap }) {
@@ -50,6 +81,7 @@ function VoicePanel({ channel, voice, memberMap }) {
       avatar: localProfile.avatar_url || user?.user_metadata?.avatar_url,
       isLocal: true,
       isMuted,
+      stream: localStream,
     });
 
     (roomUsers || [])
@@ -70,7 +102,7 @@ function VoicePanel({ channel, voice, memberMap }) {
       });
 
     return entries;
-  }, [memberMap, user, roomUsers, localSocketId, isMuted, remoteStreamMap]);
+  }, [memberMap, user, roomUsers, localSocketId, isMuted, remoteStreamMap, localStream]);
 
   return (
     <div className="flex flex-col h-full">
@@ -84,7 +116,7 @@ function VoicePanel({ channel, voice, memberMap }) {
           const meterKey = participant.isLocal ? "local" : participant.id;
           const level = audioLevels?.[meterKey] || 0;
           const waveform = audioWaveforms?.[meterKey] || [];
-          const isSpeaking = level > 0.08;
+          const isSpeaking = level > 0.04;
 
           const points = waveform.length
             ? waveform
@@ -101,9 +133,9 @@ function VoicePanel({ channel, voice, memberMap }) {
               className="flex flex-col items-center gap-2 rounded-lg border border-slate-800 bg-slate-950/40 p-3"
             >
               <div
-                className={`relative flex h-16 w-16 items-center justify-center rounded-full border-2 ${
+                className={`relative flex h-20 w-20 items-center justify-center rounded-full border-2 ${
                   isSpeaking ? "border-gruvbox-orange" : "border-slate-700"
-                } bg-slate-900 text-lg font-semibold text-slate-100`}
+                } bg-slate-900 text-lg font-semibold text-slate-100 overflow-hidden`}
               >
                 <div className="absolute -bottom-3 left-1/2 w-20 -translate-x-1/2">
                   <svg viewBox="0 0 80 40" className="h-6 w-full">
@@ -115,7 +147,9 @@ function VoicePanel({ channel, voice, memberMap }) {
                     />
                   </svg>
                 </div>
-                {participant.avatar ? (
+                {participant.stream ? (
+                  <ParticipantMedia stream={participant.stream} isLocal={participant.isLocal} />
+                ) : participant.avatar ? (
                   <img
                     src={participant.avatar}
                     alt={participant.name}
