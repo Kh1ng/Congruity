@@ -32,6 +32,7 @@ function VoicePanel({ channel, voice, memberMap }) {
     roomUsers,
     localSocketId,
     audioLevels,
+    audioWaveforms,
   } = voice;
 
   void localStream;
@@ -82,7 +83,18 @@ function VoicePanel({ channel, voice, memberMap }) {
           const initials = getInitials(participant.name);
           const meterKey = participant.isLocal ? "local" : participant.id;
           const level = audioLevels?.[meterKey] || 0;
+          const waveform = audioWaveforms?.[meterKey] || [];
           const isSpeaking = level > 0.08;
+
+          const points = waveform.length
+            ? waveform
+                .map((value, index) => {
+                  const x = (index / (waveform.length - 1)) * 80;
+                  const y = 20 - value * 14;
+                  return `${x.toFixed(1)},${y.toFixed(1)}`;
+                })
+                .join(" ")
+            : "0,20 80,20";
           return (
             <div
               key={participant.id}
@@ -93,14 +105,15 @@ function VoicePanel({ channel, voice, memberMap }) {
                   isSpeaking ? "border-gruvbox-orange" : "border-slate-700"
                 } bg-slate-900 text-lg font-semibold text-slate-100`}
               >
-                <div
-                  className="absolute -bottom-2 left-1/2 h-1 w-16 -translate-x-1/2 overflow-hidden rounded-full bg-slate-800"
-                  aria-hidden="true"
-                >
-                  <div
-                    className="h-full bg-gruvbox-orange transition-all"
-                    style={{ width: `${Math.min(100, Math.round(level * 100))}%` }}
-                  />
+                <div className="absolute -bottom-3 left-1/2 w-20 -translate-x-1/2">
+                  <svg viewBox="0 0 80 40" className="h-6 w-full">
+                    <polyline
+                      fill="none"
+                      stroke={isSpeaking ? "#d79921" : "#64748b"}
+                      strokeWidth="2"
+                      points={points}
+                    />
+                  </svg>
                 </div>
                 {participant.avatar ? (
                   <img

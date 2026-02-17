@@ -44,6 +44,7 @@ export function useWebRTC(roomId) {
   const [roomUsers, setRoomUsers] = useState([]);
   const [localSocketId, setLocalSocketId] = useState(null);
   const [audioLevels, setAudioLevels] = useState({});
+  const [audioWaveforms, setAudioWaveforms] = useState({});
 
   const socketRef = useRef(null);
   const localSocketIdRef = useRef(null);
@@ -582,28 +583,42 @@ export function useWebRTC(roomId) {
       const tick = () => {
         if (!isActive) return;
         const nextLevels = {};
+        const nextWaveforms = {};
 
-        const readLevel = (analyser) => {
+        const readSignal = (analyser) => {
           const buffer = new Uint8Array(analyser.frequencyBinCount);
           analyser.getByteTimeDomainData(buffer);
           let sum = 0;
+          const samples = [];
+          const step = Math.max(1, Math.floor(buffer.length / 32));
           for (let i = 0; i < buffer.length; i += 1) {
             const v = (buffer[i] - 128) / 128;
             sum += v * v;
+            if (i % step === 0) {
+              samples.push(v);
+            }
           }
           const rms = Math.sqrt(sum / buffer.length);
-          return Math.min(1, rms * 3.5);
+          return {
+            level: Math.min(1, rms * 3.5),
+            waveform: samples,
+          };
         };
 
         if (localAnalyser?.analyser) {
-          nextLevels.local = readLevel(localAnalyser.analyser);
+          const { level, waveform } = readSignal(localAnalyser.analyser);
+          nextLevels.local = level;
+          nextWaveforms.local = waveform;
         }
 
         remoteAnalysers.forEach((entry, id) => {
-          nextLevels[id] = readLevel(entry.analyser);
+          const { level, waveform } = readSignal(entry.analyser);
+          nextLevels[id] = level;
+          nextWaveforms[id] = waveform;
         });
 
         setAudioLevels(nextLevels);
+        setAudioWaveforms(nextWaveforms);
         rafId = requestAnimationFrame(tick);
       };
 
@@ -614,6 +629,7 @@ export function useWebRTC(roomId) {
       start();
     } else {
       setAudioLevels({});
+      setAudioWaveforms({});
     }
 
     return () => {
@@ -640,6 +656,7 @@ export function useWebRTC(roomId) {
     roomUsers,
     localSocketId,
     audioLevels,
+    audioWaveforms,
     startCall,
     endCall,
     toggleMute,
