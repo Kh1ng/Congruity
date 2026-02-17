@@ -105,9 +105,12 @@ function DockStack({ dockId, panels }) {
     [order, panelMap]
   );
 
-  const sizes = orderedPanels.map(
-    (panel) => sizeById[panel.id] ?? panel.initialSize ?? 160
-  );
+  const minPaneSize = 120;
+  const sizes = orderedPanels.map((panel) => {
+    const raw = sizeById[panel.id] ?? panel.initialSize ?? 160;
+    if (typeof raw !== "number" || Number.isNaN(raw)) return 160;
+    return Math.max(raw, minPaneSize);
+  });
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
@@ -124,7 +127,11 @@ function DockStack({ dockId, panels }) {
     setSizeById((prev) => {
       const updated = { ...prev };
       orderedPanels.forEach((panel, index) => {
-        updated[panel.id] = nextSizes[index];
+        const raw = nextSizes[index];
+        updated[panel.id] =
+          typeof raw === "number" && !Number.isNaN(raw)
+            ? Math.max(raw, minPaneSize)
+            : minPaneSize;
       });
       return updated;
     });
