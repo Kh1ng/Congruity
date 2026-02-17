@@ -45,6 +45,16 @@ export function useWebRTC(roomId) {
   const [localSocketId, setLocalSocketId] = useState(null);
   const [audioLevels, setAudioLevels] = useState({});
   const [audioWaveforms, setAudioWaveforms] = useState({});
+  const [videoConstraints, setVideoConstraints] = useState({
+    width: 1280,
+    height: 720,
+    frameRate: 30,
+  });
+  const [screenConstraints, setScreenConstraints] = useState({
+    width: 1920,
+    height: 1080,
+    frameRate: 30,
+  });
 
   const socketRef = useRef(null);
   const localSocketIdRef = useRef(null);
@@ -343,7 +353,13 @@ export function useWebRTC(roomId) {
         }
 
         const stream = await navigator.mediaDevices.getUserMedia({
-          video,
+          video: video
+            ? {
+                width: { ideal: videoConstraints.width },
+                height: { ideal: videoConstraints.height },
+                frameRate: { ideal: videoConstraints.frameRate },
+              }
+            : false,
           audio,
         });
 
@@ -371,7 +387,11 @@ export function useWebRTC(roomId) {
         throw new Error("Start a call before sharing your screen.");
       }
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
+        video: {
+          width: { ideal: screenConstraints.width },
+          height: { ideal: screenConstraints.height },
+          frameRate: { ideal: screenConstraints.frameRate },
+        },
         audio: true,
       });
 
@@ -665,6 +685,10 @@ export function useWebRTC(roomId) {
     localSocketId,
     audioLevels,
     audioWaveforms,
+    videoConstraints,
+    screenConstraints,
+    setVideoConstraints,
+    setScreenConstraints,
     startCall,
     endCall,
     toggleMute,

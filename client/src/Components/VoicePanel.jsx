@@ -8,7 +8,7 @@ function getInitials(name) {
   return parts.map((part) => part[0]?.toUpperCase() || "").join("") || "?";
 }
 
-function ParticipantMedia({ stream, isLocal }) {
+function ParticipantMedia({ stream, isLocal, fit = "cover" }) {
   const videoRef = useRef(null);
   const audioRef = useRef(null);
 
@@ -44,7 +44,9 @@ function ParticipantMedia({ stream, isLocal }) {
           autoPlay
           playsInline
           muted={isLocal}
-          className="h-full w-full rounded-full object-cover"
+          className={`h-full w-full ${fit === "contain" ? "object-contain" : "object-cover"} ${
+            fit === "contain" ? "rounded-lg" : "rounded-full"
+          }`}
         />
       )}
       {stream && hasLiveAudio && <audio ref={audioRef} autoPlay muted={isLocal} />}
@@ -85,6 +87,10 @@ function VoicePanel({ channel, voice, memberMap }) {
     localSocketId,
     audioLevels,
     audioWaveforms,
+    videoConstraints,
+    screenConstraints,
+    setVideoConstraints,
+    setScreenConstraints,
   } = voice;
 
   void localStream;
@@ -170,6 +176,67 @@ function VoicePanel({ channel, voice, memberMap }) {
           </button>
         </div>
       </div>
+      <div className="flex flex-wrap gap-3 text-xs text-slate-400 mb-3">
+        <label className="flex items-center gap-2">
+          Cam
+          <select
+            value={`${videoConstraints.width}x${videoConstraints.height}`}
+            onChange={(e) => {
+              const [width, height] = e.target.value.split("x").map(Number);
+              setVideoConstraints((prev) => ({ ...prev, width, height }));
+            }}
+            className="bg-slate-900/60 border border-slate-800 rounded px-2 py-1"
+          >
+            <option value="640x360">640x360</option>
+            <option value="1280x720">1280x720</option>
+            <option value="1920x1080">1920x1080</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-2">
+          Cam FPS
+          <select
+            value={videoConstraints.frameRate}
+            onChange={(e) =>
+              setVideoConstraints((prev) => ({ ...prev, frameRate: Number(e.target.value) }))
+            }
+            className="bg-slate-900/60 border border-slate-800 rounded px-2 py-1"
+          >
+            <option value={24}>24</option>
+            <option value={30}>30</option>
+            <option value={60}>60</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-2">
+          Share
+          <select
+            value={`${screenConstraints.width}x${screenConstraints.height}`}
+            onChange={(e) => {
+              const [width, height] = e.target.value.split("x").map(Number);
+              setScreenConstraints((prev) => ({ ...prev, width, height }));
+            }}
+            className="bg-slate-900/60 border border-slate-800 rounded px-2 py-1"
+          >
+            <option value="1280x720">1280x720</option>
+            <option value="1920x1080">1920x1080</option>
+            <option value="2560x1440">2560x1440</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-2">
+          Share FPS
+          <select
+            value={screenConstraints.frameRate}
+            onChange={(e) =>
+              setScreenConstraints((prev) => ({ ...prev, frameRate: Number(e.target.value) }))
+            }
+            className="bg-slate-900/60 border border-slate-800 rounded px-2 py-1"
+          >
+            <option value={15}>15</option>
+            <option value={30}>30</option>
+            <option value={60}>60</option>
+          </select>
+        </label>
+      </div>
+      </div>
       {error && <div className="text-red-500 mb-2">{error}</div>}
 
       {showVideoStage && (
@@ -208,7 +275,7 @@ function VoicePanel({ channel, voice, memberMap }) {
                     isSpeaking ? "border-gruvbox-orange" : "border-slate-700"
                   } bg-slate-900 text-lg font-semibold text-slate-100`}
                 >
-                  <ParticipantMedia stream={participant.stream} isLocal={participant.isLocal} />
+                  <ParticipantMedia stream={participant.stream} isLocal={participant.isLocal} fit="contain" />
                 </div>
                 <div className="mt-2 flex items-center justify-between">
                   <div className="text-sm font-medium text-slate-100">
