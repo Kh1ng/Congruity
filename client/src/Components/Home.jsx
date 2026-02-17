@@ -9,6 +9,7 @@ import Messages from "./Message";
 import VoicePanel from "./VoicePanel";
 import VoiceDock from "./VoiceDock";
 import ServerProfilePanel from "./ServerProfilePanel";
+import MembersPanel from "./MembersPanel";
 import DockStack from "./DockStack";
 import SettingsView from "./SettingsView";
 import SubagentPanel from "./SubagentPanel";
@@ -136,24 +137,31 @@ function Home() {
   }, [collapseChannels, collapseServers, selectedServer?.id, selectedChannel?.id]);
 
   const rightPanels = useMemo(() => {
+    registerPanel("members", {
+      dock: "right",
+      title: "Members",
+      order: 1,
+      content: <MembersPanel serverId={selectedServer?.id} />,
+    });
+
     registerPanel("friends", {
       dock: "right",
       title: "Friends",
-      order: 1,
+      order: 2,
       content: <FriendsList onMessage={(friend) => setSelectedFriend(friend)} />,
     });
 
     registerPanel("dm", {
       dock: "right",
       title: "DM",
-      order: 2,
+      order: 3,
       content: <DMChat friend={selectedFriend} />,
     });
 
     registerPanel("settings", {
       dock: "right",
       title: "Settings",
-      order: 3,
+      order: 4,
       content: (
         <SettingsView
           server={selectedServer}
@@ -165,7 +173,7 @@ function Home() {
     registerPanel("server-profile", {
       dock: "right",
       title: "Server",
-      order: 4,
+      order: 5,
       content: (
         <ServerProfilePanel server={selectedServer} memberMap={memberMap} />
       ),
@@ -174,7 +182,7 @@ function Home() {
     registerPanel("subagents", {
       dock: "right",
       title: "Subagents",
-      order: 5,
+      order: 6,
       content: <SubagentPanel />,
     });
 
