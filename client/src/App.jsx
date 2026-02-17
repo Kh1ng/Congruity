@@ -28,8 +28,8 @@ function App() {
   }
 
   return (
-    <div className="bg-gradient-to-bl from-slate-950 via-slate-700 to-slate-800 h-full min-h-screen text-slate-200 px-6 py-6 flex flex-col">
-      <div className="flex justify-between items-center mb-4 shrink-0">
+    <div className="bg-gradient-to-bl from-slate-950 via-slate-700 to-slate-800 min-h-screen text-slate-200 p-10 mx-auto">
+      <div className="flex justify-between items-center mb-4">
         <span className="text-sm text-slate-400">Logged in as {user.email}</span>
         <button
           onClick={signOut}
@@ -38,9 +38,7 @@ function App() {
           Sign Out
         </button>
       </div>
-      <div className="flex-1 min-h-0">
-        <Home />
-      </div>
+      <Home />
     </div>
   );
 }

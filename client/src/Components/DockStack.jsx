@@ -105,12 +105,9 @@ function DockStack({ dockId, panels }) {
     [order, panelMap]
   );
 
-  const minPaneSize = 120;
-  const sizes = orderedPanels.map((panel) => {
-    const raw = sizeById[panel.id] ?? panel.initialSize ?? 160;
-    if (typeof raw !== "number" || Number.isNaN(raw)) return 160;
-    return Math.max(raw, minPaneSize);
-  });
+  const sizes = orderedPanels.map(
+    (panel) => sizeById[panel.id] ?? panel.initialSize ?? 160
+  );
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
@@ -127,11 +124,7 @@ function DockStack({ dockId, panels }) {
     setSizeById((prev) => {
       const updated = { ...prev };
       orderedPanels.forEach((panel, index) => {
-        const raw = nextSizes[index];
-        updated[panel.id] =
-          typeof raw === "number" && !Number.isNaN(raw)
-            ? Math.max(raw, minPaneSize)
-            : minPaneSize;
+        updated[panel.id] = nextSizes[index];
       });
       return updated;
     });
@@ -146,8 +139,7 @@ function DockStack({ dockId, panels }) {
       onChange={handleSizeChange}
       resizerSize={6}
       allowResize
-      className="h-full min-h-0"
-      style={{ height: "100%" }}
+      className="h-full"
     >
       {orderedPanels.map((panel) => (
         <Pane key={panel.id} minSize={120} className="min-h-0">
@@ -160,19 +152,17 @@ function DockStack({ dockId, panels }) {
   );
 
   return (
-    <div className="h-full min-h-0">
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={orderedPanels.map((panel) => panel.id)} strategy={verticalListSortingStrategy}>
-          {orderedPanels.length === 1 ? (
-            <DockPanel id={orderedPanels[0].id} title={orderedPanels[0].title}>
-              {orderedPanels[0].content}
-            </DockPanel>
-          ) : (
-            panelContent
-          )}
-        </SortableContext>
-      </DndContext>
-    </div>
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <SortableContext items={orderedPanels.map((panel) => panel.id)} strategy={verticalListSortingStrategy}>
+        {orderedPanels.length === 1 ? (
+          <DockPanel id={orderedPanels[0].id} title={orderedPanels[0].title}>
+            {orderedPanels[0].content}
+          </DockPanel>
+        ) : (
+          panelContent
+        )}
+      </SortableContext>
+    </DndContext>
   );
 }
 
