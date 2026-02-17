@@ -9,6 +9,7 @@ const express = require("express");
 const http = require("http");
 const https = require("https");
 const fs = require("fs");
+const path = require("path");
 const { Server } = require("socket.io");
 
 const app = express();
@@ -20,8 +21,18 @@ const corsOrigins = (process.env.CORS_ORIGIN
   .map((origin) => origin.trim())
   .filter(Boolean);
 
-const sslCertPath = process.env.SSL_CERT_PATH || process.env.TLS_CERT_PATH;
-const sslKeyPath = process.env.SSL_KEY_PATH || process.env.TLS_KEY_PATH;
+const fallbackCertPath = path.join(__dirname, "../client/.cert/dev-cert.pem");
+const fallbackKeyPath = path.join(__dirname, "../client/.cert/dev-key.pem");
+
+const sslCertPath =
+  process.env.SSL_CERT_PATH ||
+  process.env.TLS_CERT_PATH ||
+  (fs.existsSync(fallbackCertPath) ? fallbackCertPath : undefined);
+const sslKeyPath =
+  process.env.SSL_KEY_PATH ||
+  process.env.TLS_KEY_PATH ||
+  (fs.existsSync(fallbackKeyPath) ? fallbackKeyPath : undefined);
+
 const useHttps =
   sslCertPath &&
   sslKeyPath &&
