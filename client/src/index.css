@@ -13,10 +13,10 @@
 :root,
 :root[data-theme="gruvbox"] {
   --color-bg: #282828;
-  --color-surface: #32302f;
-  --color-surface-alt: #3c3836;
+  --color-surface: #3c3836;
+  --color-surface-alt: #1d2021;
   --color-text: #ebdbb2;
-  --color-text-muted: #d5c4a1;
+  --color-text-muted: #928374;
   --color-border: #665c54;
   --color-accent: #fe8019;
   --color-accent-contrast: #282828;
@@ -54,17 +54,17 @@
 }
 
 :root[data-theme="tokyo-night"] {
-  --color-bg: #1a1b26;
-  --color-surface: #24283b;
-  --color-surface-alt: #2f3549;
-  --color-text: #c0caf5;
-  --color-text-muted: #9aa5ce;
-  --color-border: #414868;
-  --color-accent: #7aa2f7;
-  --color-accent-contrast: #1a1b26;
-  --color-accent-2: #bb9af7;
-  --color-danger: #f7768e;
-  --color-success: #9ece6a;
+  --color-bg: #0a0047;
+  --color-surface: #000000;
+  --color-surface-alt: #0f0a5c;
+  --color-text: #e6e6ff;
+  --color-text-muted: #b6b6d9;
+  --color-border: #2b1f7a;
+  --color-accent: #00ffd2;
+  --color-accent-contrast: #000000;
+  --color-accent-2: #ff4499;
+  --color-danger: #ff92a1;
+  --color-success: #2ecc71;
 }
 
 body {
