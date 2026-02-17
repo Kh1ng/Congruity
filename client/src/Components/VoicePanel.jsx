@@ -153,7 +153,11 @@ function VoicePanel({ channel, voice, memberMap }) {
     const defaults = visibleVideoParticipants
       .filter((participant) => !participant.isLocal)
       .map((participant) => participant.id);
-    setStageStreamIds((prev) => (prev.length ? prev : defaults));
+    setStageStreamIds((prev) => {
+      if (prev.length) return prev;
+      if (!defaults.length) return prev;
+      return defaults;
+    });
   }, [showVideoStage, visibleVideoParticipants, setStageStreamIds]);
 
   const stageParticipants = focusedStreamId
