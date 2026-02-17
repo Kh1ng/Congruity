@@ -15,3 +15,33 @@ Simple web chat app I hope to deploy using tauri across multiple devices.
 ## Dev log
 #### October 11, 2024
 For the time being, I have decided on an expressJS backend, once I understand how a signaling server works better i'd like to write it in something other than JS just as a learning experience.
+
+## Current Status (WIP)
+The UI is not 100% yet. Remaining work (from ongoing chat + dev plan):
+
+### WebRTC Reliability
+- [ ] Use WSS signaling in production and document TLS/reverse-proxy setup.
+- [ ] Offer/answer glare handling (polite peer or joiner‑only offer).
+- [ ] TURN server support wired to env + defaults documented.
+- [ ] Participant identity mapping (socket id vs user id) verified in UI.
+
+### UI & UX Gaps
+- [ ] Member list panel (dockable) with presence indicators.
+- [ ] Channels CRUD UI (create/edit/delete, topics, slow mode).
+- [ ] Message edit/delete UI + edited state.
+- [ ] DMs: thread list + realtime updates.
+- [ ] Presence/status controls + unread/mention indicators.
+- [ ] Search, pins, typing indicators.
+
+### TDD & Tests
+- [ ] Expand tests for hooks: useMessages, useDirectMessages, useFriends, useWebRTC.
+- [ ] Add WebRTC integration tests where feasible.
+- [ ] CLI test coverage for auth/servers/channels/DMs.
+
+### CLI & Tooling
+- [ ] Expand CLI parity (watch mode, typing indicator, message edits).
+- [ ] Add more helpful CLI output/flags for paging/filtering.
+
+### Infra & Ops
+- [ ] Fix dashboard upload issue (needs correct repo/source).
+- [ ] Ollama embedding availability check + fallback behavior.

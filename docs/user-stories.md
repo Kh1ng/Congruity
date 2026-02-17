@@ -1,5 +1,20 @@
 # Congruity User Stories (v0.2)
 
+## Remaining Implementation Checklist
+- [ ] WebRTC: WSS signaling in production + TLS/reverse-proxy documentation.
+- [ ] WebRTC: offer/answer glare handling.
+- [ ] WebRTC: TURN support + env configuration docs.
+- [ ] UI: member list panel (dockable) with presence.
+- [ ] UI: channels CRUD UI (create/edit/delete + topics/slow mode).
+- [ ] UI: message edit/delete UI + edited indicator.
+- [ ] UI: DM thread list + realtime updates.
+- [ ] UI: presence/status controls + unread/mention indicators.
+- [ ] UI: search, pins, typing indicators.
+- [ ] TDD: expand tests for hooks + WebRTC + CLI.
+- [ ] CLI: watch mode, typing indicator, message edits.
+- [ ] Infra: resolve dashboard upload issue.
+- [ ] Ops: Ollama embeddings availability + fallback behavior.
+
 ## Auth & Profiles
 ### Core Authentication
 - As a user, I can sign up with email + password.
