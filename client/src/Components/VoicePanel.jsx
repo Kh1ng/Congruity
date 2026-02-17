@@ -63,10 +63,6 @@ function VoicePanel({ channel, voice, memberMap }) {
   const [hiddenStreams, setHiddenStreams] = React.useState(() => new Set());
   const [focusedStreamId, setFocusedStreamId] = React.useState(null);
 
-  useEffect(() => {
-    localStorage.setItem("voice:autoVideo", String(autoVideo));
-  }, [autoVideo]);
-
   if (!channel) {
     return <div className="text-slate-400">Select a voice channel to join.</div>;
   }
