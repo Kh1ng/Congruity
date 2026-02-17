@@ -150,12 +150,11 @@ function VoicePanel({ channel, voice, memberMap }) {
 
   useEffect(() => {
     if (!showVideoStage) return;
-    if (stageStreamIds.length) return;
     const defaults = visibleVideoParticipants
       .filter((participant) => !participant.isLocal)
       .map((participant) => participant.id);
-    setStageStreamIds(defaults);
-  }, [showVideoStage, visibleVideoParticipants, stageStreamIds, setStageStreamIds]);
+    setStageStreamIds((prev) => (prev.length ? prev : defaults));
+  }, [showVideoStage, visibleVideoParticipants, setStageStreamIds]);
 
   const stageParticipants = focusedStreamId
     ? visibleVideoParticipants.filter((participant) => participant.id === focusedStreamId)
