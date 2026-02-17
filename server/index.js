@@ -7,15 +7,39 @@
 
 const express = require("express");
 const http = require("http");
+const https = require("https");
+const fs = require("fs");
 const { Server } = require("socket.io");
 
 const app = express();
-const server = http.createServer(app);
+
+const corsOrigins = (process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",")
+  : ["http://localhost:5173", "https://localhost:5173"]
+).map((origin) => origin.trim()).filter(Boolean);
+
+const sslCertPath = process.env.SSL_CERT_PATH;
+const sslKeyPath = process.env.SSL_KEY_PATH;
+const useHttps =
+  sslCertPath &&
+  sslKeyPath &&
+  fs.existsSync(sslCertPath) &&
+  fs.existsSync(sslKeyPath);
+
+const server = useHttps
+  ? https.createServer(
+      {
+        cert: fs.readFileSync(sslCertPath),
+        key: fs.readFileSync(sslKeyPath),
+      },
+      app
+    )
+  : http.createServer(app);
 
 // Configure Socket.IO with CORS for dev
 const io = new Server(server, {
   cors: {
-    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+    origin: corsOrigins,
     methods: ["GET", "POST"],
   },
 });
@@ -108,5 +132,6 @@ io.on("connection", (socket) => {
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
-  console.log(`Signaling server running on port ${PORT}`);
+  const protocol = useHttps ? "https" : "http";
+  console.log(`Signaling server running on ${protocol}://0.0.0.0:${PORT}`);
 });

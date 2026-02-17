@@ -3,9 +3,22 @@ import { io } from "socket.io-client";
 
 const SIGNALING_URL = import.meta.env.VITE_SIGNALING_URL || "ws://localhost:3001";
 
+const TURN_URL = import.meta.env.VITE_TURN_URL;
+const TURN_USERNAME = import.meta.env.VITE_TURN_USERNAME;
+const TURN_CREDENTIAL = import.meta.env.VITE_TURN_CREDENTIAL;
+
 const ICE_SERVERS = [
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
+  ...(TURN_URL
+    ? [
+        {
+          urls: TURN_URL,
+          username: TURN_USERNAME,
+          credential: TURN_CREDENTIAL,
+        },
+      ]
+    : []),
 ];
 
 /**
