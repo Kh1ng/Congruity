@@ -163,16 +163,15 @@ function VoicePanel({ channel, voice, memberMap }) {
 
   const effectiveStageIds = stageStreamIds.length ? stageStreamIds : defaultStageIds;
 
-  const stageParticipants = focusedStreamId
-    ? visibleVideoParticipants.filter((participant) => participant.id === focusedStreamId)
-    : visibleVideoParticipants.filter((participant) => effectiveStageIds.includes(participant.id));
+  const safeFocusedId =
+    focusedStreamId &&
+    visibleVideoParticipants.find((participant) => participant.id === focusedStreamId)
+      ? focusedStreamId
+      : null;
 
-  useEffect(() => {
-    if (!focusedStreamId) return;
-    if (!visibleVideoParticipants.find((participant) => participant.id === focusedStreamId)) {
-      setFocusedStreamId(null);
-    }
-  }, [focusedStreamId, visibleVideoParticipants]);
+  const stageParticipants = safeFocusedId
+    ? visibleVideoParticipants.filter((participant) => participant.id === safeFocusedId)
+    : visibleVideoParticipants.filter((participant) => effectiveStageIds.includes(participant.id));
 
   return (
     <div className="flex flex-col h-full">
