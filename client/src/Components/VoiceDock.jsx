@@ -6,7 +6,7 @@ function VoiceDock({ channel, voice }) {
   const { isConnected, isMuted, toggleMute, endCall, roomUsers } = voice;
 
   return (
-    <div className="mt-4 bg-slate-950/60 border border-slate-800 rounded p-3">
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-6xl bg-slate-950/80 border border-slate-800 rounded p-3 z-40 shadow-lg">
       <div className="flex items-center justify-between">
         <div>
           <div className="text-xs text-slate-400">Voice</div>

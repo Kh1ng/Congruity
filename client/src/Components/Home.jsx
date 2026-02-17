@@ -96,7 +96,7 @@ function Home() {
         </div>
       </div>
 
-      <div className="grid gap-3 h-[calc(100vh-200px)]" style={{ gridTemplateColumns }}>
+      <div className="grid gap-3 h-[calc(100vh-240px)]" style={{ gridTemplateColumns }}>
         <aside className="bg-slate-950/40 border border-slate-800 rounded p-3 overflow-y-auto">
           {!collapseServers ? (
             <ServerList
