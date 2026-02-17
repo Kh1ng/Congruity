@@ -8,6 +8,8 @@
     "devh": "vite --host",
     "build": "vite build",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "lint:changed": "node scripts/lint-changed.mjs",
+    "lint:staged": "node scripts/lint-changed.mjs --staged",
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
