@@ -220,6 +220,12 @@ function Home() {
               >
                 {collapseSocial ? "Show Social" : "Hide Social"}
               </button>
+              <button
+                onClick={resetLayout}
+                className="mt-2 block w-full text-left text-xs text-slate-300 hover:text-gruvbox-orange"
+              >
+                Reset Layout
+              </button>
             </div>
           )}
         </div>

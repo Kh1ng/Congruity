@@ -125,6 +125,9 @@ function DockStack({ dockId, panels }) {
     return Math.max(raw, minPaneSize);
   });
 
+  const normalizedTotal = sizes.reduce((sum, value) => sum + value, 0);
+  const hasCollapsed = normalizedTotal < minPaneSize * orderedPanels.length;
+
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   const handleDragEnd = (event) => {
@@ -155,14 +158,15 @@ function DockStack({ dockId, panels }) {
   const panelContent = (
     <SplitPane
       split="horizontal"
-      sizes={sizes}
+      sizes={hasCollapsed ? orderedPanels.map(() => 160) : sizes}
       onChange={handleSizeChange}
       resizerSize={6}
       allowResize
-      className="h-full"
+      className="h-full min-h-0"
+      style={{ height: "100%" }}
     >
       {orderedPanels.map((panel) => (
-        <Pane key={panel.id} minSize={120} className="min-h-0">
+        <Pane key={panel.id} minSize={minPaneSize} className="min-h-0">
           <DockPanel id={panel.id} title={panel.title}>
             {panel.content}
           </DockPanel>
