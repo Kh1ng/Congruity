@@ -167,6 +167,13 @@ function VoicePanel({ channel, voice, memberMap }) {
     ? visibleVideoParticipants.filter((participant) => participant.id === focusedStreamId)
     : visibleVideoParticipants.filter((participant) => effectiveStageIds.includes(participant.id));
 
+  useEffect(() => {
+    if (!focusedStreamId) return;
+    if (!visibleVideoParticipants.find((participant) => participant.id === focusedStreamId)) {
+      setFocusedStreamId(null);
+    }
+  }, [focusedStreamId, visibleVideoParticipants]);
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between mb-3">
@@ -298,7 +305,11 @@ function VoicePanel({ channel, voice, memberMap }) {
                       event.stopPropagation();
                       setHiddenStreams((prev) => {
                         const next = new Set(prev);
-                        next.add(participant.id);
+                        if (next.has(participant.id)) {
+                          next.delete(participant.id);
+                        } else {
+                          next.add(participant.id);
+                        }
                         return next;
                       });
                     }}
