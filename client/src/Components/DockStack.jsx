@@ -79,10 +79,24 @@ function DockStack({ dockId, panels }) {
     }
   });
 
+  const minPaneSize = 120;
+
   const [sizeById, setSizeById] = useState(() => {
     const raw = localStorage.getItem(`${storageKey}:sizes`);
     try {
-      return raw ? JSON.parse(raw) : {};
+      const parsed = raw ? JSON.parse(raw) : {};
+      const values = Object.values(parsed);
+      const hasInvalid = values.some(
+        (value) => typeof value !== "number" || Number.isNaN(value) || value < minPaneSize
+      );
+      const total = values.reduce(
+        (sum, value) => (typeof value === "number" && !Number.isNaN(value) ? sum + value : sum),
+        0
+      );
+      if (hasInvalid || total < minPaneSize * panels.length) {
+        return {};
+      }
+      return parsed;
     } catch {
       return {};
     }
@@ -105,9 +119,11 @@ function DockStack({ dockId, panels }) {
     [order, panelMap]
   );
 
-  const sizes = orderedPanels.map(
-    (panel) => sizeById[panel.id] ?? panel.initialSize ?? 160
-  );
+  const sizes = orderedPanels.map((panel) => {
+    const raw = sizeById[panel.id] ?? panel.initialSize ?? 160;
+    if (typeof raw !== "number" || Number.isNaN(raw)) return 160;
+    return Math.max(raw, minPaneSize);
+  });
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
@@ -124,7 +140,11 @@ function DockStack({ dockId, panels }) {
     setSizeById((prev) => {
       const updated = { ...prev };
       orderedPanels.forEach((panel, index) => {
-        updated[panel.id] = nextSizes[index];
+        const raw = nextSizes[index];
+        updated[panel.id] =
+          typeof raw === "number" && !Number.isNaN(raw)
+            ? Math.max(raw, minPaneSize)
+            : minPaneSize;
       });
       return updated;
     });
