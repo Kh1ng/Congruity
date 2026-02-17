@@ -93,6 +93,8 @@ function VoicePanel({ channel, voice, memberMap }) {
     screenConstraints,
     setVideoConstraints,
     setScreenConstraints,
+    stageStreamIds,
+    setStageStreamIds,
   } = voice;
 
   void localStream;
@@ -146,9 +148,18 @@ function VoicePanel({ channel, voice, memberMap }) {
   const hasActiveVideo = visibleVideoParticipants.length > 0;
   const showVideoStage = autoVideo && hasActiveVideo;
 
+  useEffect(() => {
+    if (!showVideoStage) return;
+    if (stageStreamIds.length) return;
+    const defaults = visibleVideoParticipants
+      .filter((participant) => !participant.isLocal)
+      .map((participant) => participant.id);
+    setStageStreamIds(defaults);
+  }, [showVideoStage, visibleVideoParticipants, stageStreamIds, setStageStreamIds]);
+
   const stageParticipants = focusedStreamId
     ? visibleVideoParticipants.filter((participant) => participant.id === focusedStreamId)
-    : visibleVideoParticipants;
+    : visibleVideoParticipants.filter((participant) => stageStreamIds.includes(participant.id));
 
   return (
     <div className="flex flex-col h-full">
@@ -312,77 +323,6 @@ function VoicePanel({ channel, voice, memberMap }) {
           })}
         </div>
       )}
-
-      <div className="flex flex-wrap gap-3 mb-4">
-        {participants.map((participant) => {
-          const initials = getInitials(participant.name);
-          const meterKey = participant.isLocal ? "local" : participant.id;
-          const level = audioLevels?.[meterKey] || 0;
-          const waveform = audioWaveforms?.[meterKey] || [];
-          const isSpeaking = level > 0.01;
-
-          const points = waveform.length
-            ? waveform
-                .map((value, index) => {
-                  const x = (index / (waveform.length - 1)) * 80;
-                  const y = 20 - value * 14;
-                  return `${x.toFixed(1)},${y.toFixed(1)}`;
-                })
-                .join(" ")
-            : "0,20 80,20";
-          return (
-            <div
-              key={participant.id}
-              className="flex flex-col items-center gap-2 rounded-lg border border-slate-800 bg-slate-950/40 p-3"
-            >
-              <div
-                className={`relative flex h-20 w-20 items-center justify-center rounded-full border-2 ${
-                  isSpeaking ? "border-gruvbox-orange" : "border-slate-700"
-                } bg-slate-900 text-lg font-semibold text-slate-100 overflow-hidden`}
-              >
-                <div className="absolute -bottom-3 left-1/2 w-20 -translate-x-1/2">
-                  <svg viewBox="0 0 80 40" className="h-6 w-full">
-                    <polyline
-                      fill="none"
-                      stroke={isSpeaking ? "#d79921" : "#64748b"}
-                      strokeWidth="2"
-                      points={points}
-                    />
-                  </svg>
-                </div>
-                {participant.avatar ? (
-                  <img
-                    src={participant.avatar}
-                    alt={participant.name}
-                    className="h-full w-full rounded-full object-cover"
-                  />
-                ) : (
-                  initials
-                )}
-                {participant.isLocal && (
-                  <span className="absolute -bottom-1 -right-1 rounded-full bg-slate-950 p-1 text-xs">
-                    {isMuted ? <MicOff size={12} /> : <Mic size={12} />}
-                  </span>
-                )}
-              </div>
-              <div className="text-sm font-medium text-slate-100 text-center">
-                {participant.isLocal ? "You" : participant.name}
-              </div>
-              <div className="text-xs text-slate-400">
-                {participant.isLocal
-                  ? isMuted
-                    ? "Muted"
-                    : isConnected
-                      ? "Speaking"
-                      : "Offline"
-                  : isSpeaking
-                    ? "Speaking"
-                    : "Idle"}
-              </div>
-            </div>
-          );
-        })}
-      </div>
 
       <div className="flex items-center gap-2 flex-wrap">
         {!isConnected ? (

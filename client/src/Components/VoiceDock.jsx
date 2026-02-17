@@ -1,8 +1,36 @@
-import React from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { Mic, MicOff, MonitorUp, PhoneOff, Video, VideoOff } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
-function VoiceDock({ channel, voice }) {
+function StreamPreview({ stream }) {
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    if (!videoRef.current) return;
+    if (stream && stream.getVideoTracks().length) {
+      videoRef.current.srcObject = stream;
+    } else {
+      videoRef.current.srcObject = null;
+    }
+  }, [stream]);
+
+  if (!stream || !stream.getVideoTracks().length) return null;
+
+  return (
+    <video
+      ref={videoRef}
+      autoPlay
+      playsInline
+      muted
+      className="h-20 w-32 rounded object-contain bg-black"
+    />
+  );
+}
+
+function VoiceDock({ channel, voice, memberMap }) {
   if (!channel) return null;
+
+  const { user } = useAuth();
 
   const {
     isConnected,
@@ -15,7 +43,48 @@ function VoiceDock({ channel, voice }) {
     stopScreenShare,
     endCall,
     roomUsers,
+    remoteStreams,
+    localStream,
+    stageStreamIds,
+    setStageStreamIds,
   } = voice;
+
+  const remoteStreamMap = useMemo(() => new Map(remoteStreams || []), [remoteStreams]);
+
+  const participants = useMemo(() => {
+    const entries = [];
+    const localProfile = memberMap?.[user?.id]?.profile || {};
+    const localName =
+      localProfile.display_name || localProfile.username || user?.email || "You";
+    entries.push({
+      id: "local",
+      name: localName,
+      initials: localName.slice(0, 2).toUpperCase(),
+      isLocal: true,
+      stream: localStream,
+    });
+
+    (roomUsers || []).forEach((entry) => {
+      const socketId = entry?.socketId || entry;
+      const userId = entry?.userId;
+      const profile = userId ? memberMap?.[userId]?.profile || {} : {};
+      const name = profile.display_name || profile.username || userId || socketId;
+      entries.push({
+        id: socketId,
+        name,
+        initials: String(name || "?").slice(0, 2).toUpperCase(),
+        stream: remoteStreamMap.get(socketId),
+      });
+    });
+
+    return entries;
+  }, [roomUsers, memberMap, user, remoteStreamMap, localStream]);
+
+  const toggleStage = (id) => {
+    setStageStreamIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
 
   return (
     <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-6xl bg-slate-950/80 border border-slate-800 rounded p-2 z-40 shadow-lg">
@@ -30,54 +99,65 @@ function VoiceDock({ channel, voice }) {
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={toggleMute}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium hover:text-gruvbox-orange"
+            className="inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium hover:text-gruvbox-orange"
             disabled={!isConnected}
+            title={isMuted ? "Unmute" : "Mute"}
           >
             {isMuted ? <MicOff size={14} /> : <Mic size={14} />}
-            {isMuted ? "Unmute" : "Mute"}
           </button>
           <button
             onClick={toggleVideo}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium hover:text-gruvbox-orange"
+            className="inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium hover:text-gruvbox-orange"
             disabled={!isConnected}
+            title={isVideoOff ? "Camera On" : "Camera Off"}
           >
             {isVideoOff ? <Video size={14} /> : <VideoOff size={14} />}
-            {isVideoOff ? "Camera On" : "Camera Off"}
           </button>
           <button
             onClick={isScreenSharing ? stopScreenShare : startScreenShare}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium hover:text-gruvbox-orange"
+            className="inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium hover:text-gruvbox-orange"
             disabled={!isConnected}
+            title={isScreenSharing ? "Stop Share" : "Share Screen"}
           >
             <MonitorUp size={14} />
-            {isScreenSharing ? "Stop Share" : "Share Screen"}
           </button>
           <button
             onClick={endCall}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium hover:text-gruvbox-orange"
+            className="inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium hover:text-gruvbox-orange"
             disabled={!isConnected}
+            title="Leave"
           >
             <PhoneOff size={14} />
-            Leave
           </button>
         </div>
       </div>
-      {roomUsers?.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-400">
-          {roomUsers.map((entry, index) => {
-            const displayId = entry?.userId || entry?.socketId || entry;
-            const label = typeof displayId === "string" ? displayId.slice(0, 6) : "Unknown";
-            return (
-              <span
-                key={entry?.socketId || displayId || index}
-                className="px-2 py-1 bg-slate-900/60 rounded"
-              >
-                {label}
-              </span>
-            );
-          })}
-        </div>
-      )}
+
+      <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-400">
+        {participants.map((participant) => (
+          <div key={participant.id} className="relative group">
+            <button
+              type="button"
+              className="h-8 w-8 rounded-full border border-slate-700 bg-slate-900/70 text-[0.65rem] font-semibold"
+              title={participant.name}
+              onClick={() => participant.stream && toggleStage(participant.id)}
+            >
+              {participant.initials}
+            </button>
+            {participant.stream && (
+              <div className="absolute bottom-10 left-1/2 z-50 hidden -translate-x-1/2 rounded border border-slate-800 bg-slate-950/90 p-2 text-[0.65rem] text-slate-300 group-hover:block">
+                <div className="mb-1">{participant.name}</div>
+                <StreamPreview stream={participant.stream} />
+                <button
+                  className="mt-2 w-full rounded border border-slate-700 px-2 py-1 hover:text-gruvbox-orange"
+                  onClick={() => toggleStage(participant.id)}
+                >
+                  {stageStreamIds.includes(participant.id) ? "Remove" : "Add"}
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

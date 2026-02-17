@@ -275,7 +275,7 @@ function Home() {
         />
       </div>
 
-      <VoiceDock channel={activeVoiceChannel} voice={voiceSession} />
+      <VoiceDock channel={activeVoiceChannel} voice={voiceSession} memberMap={memberMap} />
     </div>
   );
 }

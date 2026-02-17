@@ -50,6 +50,7 @@ export function useWebRTC(roomId) {
     height: 720,
     frameRate: 30,
   });
+  const [stageStreamIds, setStageStreamIds] = useState([]);
   const [screenConstraints, setScreenConstraints] = useState({
     width: 1920,
     height: 1080,
@@ -741,6 +742,8 @@ export function useWebRTC(roomId) {
     screenConstraints,
     setVideoConstraints,
     setScreenConstraints,
+    stageStreamIds,
+    setStageStreamIds,
     startCall,
     endCall,
     toggleMute,
