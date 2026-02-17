@@ -45,6 +45,7 @@ describe("ServerList", () => {
     render(<ServerList />);
 
     fireEvent.click(screen.getByRole("button", { name: /\+ new/i }));
+    fireEvent.click(screen.getByRole("button", { name: /self-hosted/i }));
 
     const serverNameInput = await screen.findByPlaceholderText("Server name");
 
@@ -52,10 +53,10 @@ describe("ServerList", () => {
       fireEvent.change(serverNameInput, {
         target: { value: "Gamma" },
       });
-      fireEvent.click(screen.getByRole("button", { name: /create server/i }));
+      fireEvent.click(screen.getByRole("button", { name: /create \(self-hosted\)/i }));
     });
 
-    expect(createServerMock).toHaveBeenCalledWith("Gamma");
+    expect(createServerMock).toHaveBeenCalledWith("Gamma", null, "self_hosted");
   });
 
   it("join server", async () => {

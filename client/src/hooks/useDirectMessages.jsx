@@ -39,12 +39,16 @@ export function useDirectMessages(friendId) {
     }
 
     // Create a new DM channel via RPC
-    const { data: channelId, error: channelError } = await supabase
+    const { data, error: channelError } = await supabase
       .rpc("create_dm_channel", { friend_id: friendId });
 
     if (channelError) throw channelError;
 
-    return channelId;
+    if (Array.isArray(data)) {
+      return data[0]?.create_dm_channel || data[0];
+    }
+    if (data?.create_dm_channel) return data.create_dm_channel;
+    return data;
   }, [user, friendId]);
 
   const fetchMessages = useCallback(async () => {
@@ -101,7 +105,7 @@ export function useDirectMessages(friendId) {
           user_id: user.id,
           content: content.trim(),
         })
-        .select()
+        .select(`*, profiles!dm_messages_user_id_fkey(id, username, display_name, avatar_url)`)
         .single();
 
       if (error) throw error;
