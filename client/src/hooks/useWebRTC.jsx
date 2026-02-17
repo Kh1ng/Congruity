@@ -68,6 +68,7 @@ export function useWebRTC(roomId) {
   const audioEnabledRef = useRef(false);
   const meterActiveRef = useRef(false);
   const isConnectedRef = useRef(false);
+  const endCallRef = useRef(null);
 
   const ensureAudioContext = useCallback(async () => {
     if (!audioEnabledRef.current) return null;
@@ -644,6 +645,10 @@ export function useWebRTC(roomId) {
     isConnectedRef.current = isConnected;
   }, [isConnected]);
 
+  useEffect(() => {
+    endCallRef.current = endCall;
+  }, [endCall]);
+
   // Audio level meters (single loop, gated by isConnectedRef)
   useEffect(() => {
     let rafId;
@@ -742,9 +747,9 @@ export function useWebRTC(roomId) {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      endCall();
+      endCallRef.current?.();
     };
-  }, [endCall]);
+  }, []);
 
   return {
     isConnected,
