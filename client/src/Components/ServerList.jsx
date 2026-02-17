@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { ArrowLeft, Cloud, LogIn, Plus, Server as ServerIcon } from "lucide-react";
 import { useServers } from "@/hooks";
 import Spinner from "./Spinner";
 
@@ -52,24 +53,25 @@ function ServerList({ onSelectServer }) {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-xl font-bold">Servers</h1>
+      <div className="flex justify-between items-center mb-3">
+        <h1 className="text-lg font-semibold">Servers</h1>
         <button
           onClick={() => setShowCreate(!showCreate)}
-          className="text-sm hover:text-gruvbox-orange"
+          className="inline-flex items-center gap-1.5 text-sm hover:text-gruvbox-orange"
         >
-          + New
+          <Plus size={16} />
+          New
         </button>
       </div>
 
       {showCreate && (
-        <div className="mb-4 p-3 border border-slate-700 rounded space-y-3">
+        <div className="mb-3 p-2 border border-slate-700 rounded space-y-3">
           {createStep === 1 && (
             <div className="space-y-2">
               <div className="text-xs text-slate-400 uppercase">Hosting</div>
               <button
                 type="button"
-                className={`w-full text-left px-3 py-2 rounded border ${
+                className={`w-full text-left px-3 py-2 rounded border flex items-center gap-2 ${
                   hostingType === "self_hosted"
                     ? "border-gruvbox-orange text-gruvbox-orange"
                     : "border-slate-700 text-slate-200"
@@ -79,11 +81,12 @@ function ServerList({ onSelectServer }) {
                   setCreateStep(2);
                 }}
               >
+                <ServerIcon size={16} />
                 Self-hosted • Free
               </button>
               <button
                 type="button"
-                className={`w-full text-left px-3 py-2 rounded border ${
+                className={`w-full text-left px-3 py-2 rounded border flex items-center gap-2 ${
                   hostingType === "cloud"
                     ? "border-gruvbox-orange text-gruvbox-orange"
                     : "border-slate-700 text-slate-200"
@@ -93,6 +96,7 @@ function ServerList({ onSelectServer }) {
                   setCreateStep(2);
                 }}
               >
+                <Cloud size={16} />
                 Cloud-hosted • Requires active plan
               </button>
             </div>
@@ -109,7 +113,12 @@ function ServerList({ onSelectServer }) {
                 className="w-full bg-slate-900/70 border border-slate-700 rounded px-3 py-2 text-slate-100"
               />
               <div className="flex items-center gap-2">
-                <button type="button" className="text-xs text-slate-400" onClick={() => setCreateStep(1)}>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-gruvbox-orange"
+                  onClick={() => setCreateStep(1)}
+                >
+                  <ArrowLeft size={14} />
                   Back
                 </button>
                 <button type="submit" className="text-sm hover:text-gruvbox-orange">
@@ -122,7 +131,7 @@ function ServerList({ onSelectServer }) {
         </div>
       )}
 
-      <form onSubmit={handleJoin} className="mb-4 flex gap-2">
+      <form onSubmit={handleJoin} className="mb-3 flex gap-2">
         <input
           type="text"
           value={inviteCode}
@@ -130,7 +139,8 @@ function ServerList({ onSelectServer }) {
           placeholder="Invite code"
           className="flex-1 bg-slate-900/70 border border-slate-700 rounded px-3 py-2 text-slate-100 text-sm"
         />
-        <button type="submit" className="text-sm hover:text-gruvbox-orange">
+        <button type="submit" className="inline-flex items-center gap-1.5 text-sm hover:text-gruvbox-orange">
+          <LogIn size={16} />
           Join
         </button>
       </form>
@@ -138,11 +148,11 @@ function ServerList({ onSelectServer }) {
       {servers.length === 0 ? (
         <div className="text-slate-400">No servers yet. Create or join one!</div>
       ) : (
-        <ul className="space-y-2">
+        <ul className="space-y-1.5">
           {servers.map((server) => (
             <li
               key={server.id}
-              className={`border rounded p-3 cursor-pointer hover:border-gruvbox-orange ${
+              className={`border rounded p-2 cursor-pointer hover:border-gruvbox-orange ${
                 selectedId === server.id
                   ? "border-gruvbox-orange"
                   : "border-slate-600"

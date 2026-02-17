@@ -10,69 +10,98 @@
 @layer components {
 }
 
-:root {
-  /* Background colors */
-  --bg-dark: #282828;
-  --bg-light: #32302f;
+:root,
+:root[data-theme="gruvbox"] {
+  --color-bg: #282828;
+  --color-surface: #32302f;
+  --color-surface-alt: #3c3836;
+  --color-text: #ebdbb2;
+  --color-text-muted: #d5c4a1;
+  --color-border: #665c54;
+  --color-accent: #fe8019;
+  --color-accent-contrast: #282828;
+  --color-accent-2: #fabd2f;
+  --color-danger: #fb4934;
+  --color-success: #b8bb26;
+}
 
-  /* Foreground colors */
-  --fg-light: #ebdbb2;
-  --fg-dark: #d5c4a1;
+:root[data-theme="dark"] {
+  --color-bg: #0f172a;
+  --color-surface: #111827;
+  --color-surface-alt: #1f2937;
+  --color-text: #f8fafc;
+  --color-text-muted: #94a3b8;
+  --color-border: #334155;
+  --color-accent: #3b82f6;
+  --color-accent-contrast: #0f172a;
+  --color-accent-2: #22c55e;
+  --color-danger: #ef4444;
+  --color-success: #22c55e;
+}
 
-  /* Accent colors */
-  --accent-red: #fb4934;
-  --accent-green: #b8bb26;
-  --accent-yellow: #fabd2f;
-  --accent-blue: #83a598;
-  --accent-purple: #d3869b;
-  --accent-aqua: #8ec07c;
-  --accent-orange: #fe8019;
-
-  /* Borders and highlights */
-  --border: #665c54;
+:root[data-theme="light"] {
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f1f5f9;
+  --color-text: #0f172a;
+  --color-text-muted: #475569;
+  --color-border: #e2e8f0;
+  --color-accent: #2563eb;
+  --color-accent-contrast: #ffffff;
+  --color-accent-2: #f59e0b;
+  --color-danger: #dc2626;
+  --color-success: #16a34a;
 }
 
 body {
-  background-color: var(--bg-dark);
-  color: var(--fg-light);
+  background-color: var(--color-bg);
+  color: var(--color-text);
   font-family: "Inter", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
 a {
-  color: var(--accent-blue);
+  color: var(--color-accent);
 }
 
 button {
-  background-color: var(--bg-light);
-  color: var(--fg-light);
-  border: 1px solid var(--border);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
   padding: 0.5rem 1rem;
   border-radius: 0.25rem;
 }
 
 button:hover {
-  background-color: var(--accent-orange);
-  color: var(--bg-dark);
+  background-color: var(--color-accent);
+  color: var(--color-accent-contrast);
 }
 
 input[type="text"],
 input[type="email"],
 input[type="password"],
 textarea {
-  background-color: var(--bg-dark); /* Dark background */
-  color: var(--fg-light); /* Light text */
-  border: 1px solid var(--border); /* Border matches the theme */
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   padding: 0.5rem;
   font-size: 1rem;
   width: 100%;
 }
 
+.theme-control {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+
 input[type="text"]:focus,
 input[type="email"]:focus,
 input[type="password"]:focus,
-textarea:focus {
+textarea:focus,
+.theme-control:focus {
   outline: none;
-  border-color: var(--accent-orange); /* Highlight on focus */
-  box-shadow: 0 0 5px var(--accent-orange);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 5px var(--color-accent);
 }

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Send } from "lucide-react";
 import { useDirectMessages } from "@/hooks";
 import Spinner from "./Spinner";
 
@@ -23,7 +24,7 @@ function DMChat({ friend }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <h2 className="text-lg font-bold">DM: {friend.display_name || friend.username}</h2>
+        <h2 className="text-base font-semibold">DM: {friend.display_name || friend.username}</h2>
       </div>
 
       {loading && (
@@ -33,7 +34,7 @@ function DMChat({ friend }) {
       )}
       {error && <div className="text-red-500">{error}</div>}
 
-      <div className="border border-slate-700 rounded p-2 h-56 overflow-y-auto mb-2">
+      <div className="border border-slate-700 rounded p-2 h-48 overflow-y-auto mb-2">
         {messages.length === 0 ? (
           <div className="text-slate-400">No messages yet</div>
         ) : (
@@ -63,7 +64,12 @@ function DMChat({ friend }) {
           placeholder="Type a DM"
           className="flex-1 bg-slate-900/70 border border-slate-700 rounded px-3 py-2 text-slate-100"
         />
-        <button onClick={handleSend} className="text-sm hover:text-gruvbox-orange">
+        <button
+          onClick={handleSend}
+          className="inline-flex items-center gap-1.5 text-sm hover:text-gruvbox-orange"
+          aria-label="Send message"
+        >
+          <Send size={16} />
           Send
         </button>
       </div>

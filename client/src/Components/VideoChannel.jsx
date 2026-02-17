@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react";
+import { Mic, MicOff, Phone, PhoneOff, Video, VideoOff } from "lucide-react";
 import { useWebRTC } from "@/hooks";
 
 function VideoChannel({ channelId }) {
@@ -37,9 +38,9 @@ function VideoChannel({ channelId }) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="text-sm text-slate-400 mb-2">Video channel</div>
+      <div className="text-xs uppercase tracking-wide text-slate-400 mb-2">Video channel</div>
       {error && <div className="text-red-500 mb-2">{error}</div>}
-      <div className="flex gap-4 mb-4">
+      <div className="flex gap-4 mb-3">
         <div>
           <div className="text-xs text-slate-400 mb-1">You</div>
           <video ref={localVideoRef} autoPlay playsInline muted className="w-64 h-40 bg-black rounded" />
@@ -49,34 +50,38 @@ function VideoChannel({ channelId }) {
           <video ref={remoteVideoRef} autoPlay playsInline className="w-64 h-40 bg-black rounded" />
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         {!isConnected ? (
           <button
             onClick={() => startCall({ video: true, audio: true })}
-            className="px-4 py-2 text-sm font-medium hover:text-gruvbox-orange"
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium hover:text-gruvbox-orange"
           >
+            <Phone size={16} />
             Join Video
           </button>
         ) : (
           <button
             onClick={endCall}
-            className="px-4 py-2 text-sm font-medium hover:text-gruvbox-orange"
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium hover:text-gruvbox-orange"
           >
+            <PhoneOff size={16} />
             Leave Video
           </button>
         )}
         <button
           onClick={toggleMute}
-          className="px-4 py-2 text-sm font-medium hover:text-gruvbox-orange"
+          className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium hover:text-gruvbox-orange"
           disabled={!isConnected}
         >
+          {isMuted ? <MicOff size={16} /> : <Mic size={16} />}
           {isMuted ? "Unmute" : "Mute"}
         </button>
         <button
           onClick={toggleVideo}
-          className="px-4 py-2 text-sm font-medium hover:text-gruvbox-orange"
+          className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium hover:text-gruvbox-orange"
           disabled={!isConnected}
         >
+          {isVideoOff ? <Video size={16} /> : <VideoOff size={16} />}
           {isVideoOff ? "Video On" : "Video Off"}
         </button>
       </div>

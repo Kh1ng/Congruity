@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/hooks/useTheme";
 
 function AccountSettings({ serverId }) {
   const { user } = useAuth();
@@ -11,6 +12,7 @@ function AccountSettings({ serverId }) {
   const [nickname, setNickname] = useState("");
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const { theme, setTheme, options: themeOptions } = useTheme();
 
   useEffect(() => {
     const load = async () => {
@@ -120,6 +122,25 @@ function AccountSettings({ serverId }) {
             className="w-full bg-slate-900/70 border border-slate-700 rounded px-3 py-2 text-slate-100 text-sm"
           />
         )}
+        <div className="pt-2">
+          <label className="text-xs font-semibold" style={{ color: "var(--color-text-muted)" }}>
+            Theme preset
+          </label>
+          <select
+            value={theme}
+            onChange={(e) => setTheme(e.target.value)}
+            className="theme-control w-full rounded px-3 py-2 text-sm mt-1"
+          >
+            {themeOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
+            Applies instantly and saves to this device.
+          </div>
+        </div>
         <button
           type="submit"
           className="w-full text-sm font-medium hover:text-gruvbox-orange"

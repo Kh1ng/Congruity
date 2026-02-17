@@ -6,9 +6,9 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import "./index.css";
 import App from "./App";
 import Login from "./Components/Login";
-import VideoChat from "./Components/VideoChat";
 import Home from "./Components/Home";
 import { AuthProvider } from "@/hooks/useAuth";
+import { ThemeProvider } from "@/hooks/useTheme";
 
 // Polyfill global for browser
 window.global = window;
@@ -25,19 +25,17 @@ const router = createBrowserRouter([
     element: <Login />,
   },
   {
-    path: "/VideoChat",
-    element: <VideoChat />,
-  },
-  {
     path: "/home",
     element: <Home />,
   },
 ]);
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <AuthProvider>
-    <React.StrictMode>
-      <RouterProvider router={router} />
-    </React.StrictMode>
-  </AuthProvider>
+  <ThemeProvider>
+    <AuthProvider>
+      <React.StrictMode>
+        <RouterProvider router={router} />
+      </React.StrictMode>
+    </AuthProvider>
+  </ThemeProvider>
 );

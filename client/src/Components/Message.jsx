@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Send } from "lucide-react";
 import { useMessages } from "@/hooks";
 import Spinner from "./Spinner";
 
@@ -35,8 +36,8 @@ function Messages({ channelId, memberMap = {} }) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="text-sm text-slate-400 mb-2">Channel chat</div>
-      <div className="flex-1 overflow-y-auto border border-slate-700 rounded p-3 bg-slate-950/40">
+      <div className="text-xs uppercase tracking-wide text-slate-400 mb-2">Channel chat</div>
+      <div className="flex-1 overflow-y-auto border border-slate-700 rounded p-2 bg-slate-950/40">
         {messages.length === 0 ? (
           <div className="text-slate-400">No messages yet</div>
         ) : (
@@ -77,8 +78,10 @@ function Messages({ channelId, memberMap = {} }) {
         />
         <button
           onClick={handlePostMessage}
-          className="px-4 py-2 text-sm font-medium hover:text-gruvbox-orange"
+          className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium hover:text-gruvbox-orange"
+          aria-label="Send message"
         >
+          <Send size={16} />
           Send
         </button>
       </div>

@@ -1,4 +1,5 @@
 import React from "react";
+import { Hash, Volume2, Video } from "lucide-react";
 import { useChannels } from "@/hooks";
 import Spinner from "./Spinner";
 
@@ -19,22 +20,23 @@ function ChannelList({ serverId, selectedChannelId, onSelectChannel }) {
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-2">Channels</h2>
+      <h2 className="text-lg font-semibold mb-2">Channels</h2>
 
-      <div className="mb-3">
-        <div className="text-sm text-slate-400 mb-1">Text</div>
+      <div className="mb-2">
+        <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Text</div>
         <ul className="space-y-1">
           {textChannels.map((ch) => {
             const isActive = selectedChannelId === ch.id;
             return (
               <li key={ch.id}>
                 <button
-                  className={`w-full text-left px-2 py-1 rounded hover:bg-slate-800 hover:text-gruvbox-orange ${
+                  className={`w-full text-left px-2 py-1 rounded flex items-center gap-2 hover:bg-slate-800 hover:text-gruvbox-orange ${
                     isActive ? "bg-slate-800 text-gruvbox-orange" : "text-slate-200"
                   }`}
                   onClick={() => onSelectChannel?.(ch)}
                 >
-                  # {ch.name}
+                  <Hash size={14} className="text-slate-500" />
+                  <span>{ch.name}</span>
                 </button>
               </li>
             );
@@ -42,20 +44,21 @@ function ChannelList({ serverId, selectedChannelId, onSelectChannel }) {
         </ul>
       </div>
 
-      <div className="mb-3">
-        <div className="text-sm text-slate-400 mb-1">Voice</div>
+      <div className="mb-2">
+        <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Voice</div>
         <ul className="space-y-1">
           {voiceChannels.map((ch) => {
             const isActive = selectedChannelId === ch.id;
             return (
               <li key={ch.id}>
                 <button
-                  className={`w-full text-left px-2 py-1 rounded hover:bg-slate-800 hover:text-gruvbox-orange ${
+                  className={`w-full text-left px-2 py-1 rounded flex items-center gap-2 hover:bg-slate-800 hover:text-gruvbox-orange ${
                     isActive ? "bg-slate-800 text-gruvbox-orange" : "text-slate-200"
                   }`}
                   onClick={() => onSelectChannel?.(ch)}
                 >
-                  🔊 {ch.name}
+                  <Volume2 size={14} className="text-slate-500" />
+                  <span>{ch.name}</span>
                 </button>
               </li>
             );
@@ -65,19 +68,20 @@ function ChannelList({ serverId, selectedChannelId, onSelectChannel }) {
 
       {videoChannels.length > 0 && (
         <div>
-          <div className="text-sm text-slate-400 mb-1">Video</div>
+          <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Video</div>
           <ul className="space-y-1">
             {videoChannels.map((ch) => {
               const isActive = selectedChannelId === ch.id;
               return (
                 <li key={ch.id}>
                   <button
-                    className={`w-full text-left px-2 py-1 rounded hover:bg-slate-800 hover:text-gruvbox-orange ${
+                    className={`w-full text-left px-2 py-1 rounded flex items-center gap-2 hover:bg-slate-800 hover:text-gruvbox-orange ${
                       isActive ? "bg-slate-800 text-gruvbox-orange" : "text-slate-200"
                     }`}
                     onClick={() => onSelectChannel?.(ch)}
                   >
-                    🎥 {ch.name}
+                    <Video size={14} className="text-slate-500" />
+                    <span>{ch.name}</span>
                   </button>
                 </li>
               );

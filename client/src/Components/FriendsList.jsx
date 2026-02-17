@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Check, MessageCircle, UserPlus, X } from "lucide-react";
 import { useFriends } from "@/hooks";
 import Spinner from "./Spinner";
 
@@ -20,7 +21,7 @@ function FriendsList({ onMessage }) {
   if (loading) {
     return (
       <div>
-        <h2 className="text-xl font-bold mb-4">Friends</h2>
+        <h2 className="text-lg font-semibold mb-3">Friends</h2>
         <div className="text-slate-400 flex items-center gap-2">
           <Spinner size={14} /> Loading...
         </div>
@@ -30,9 +31,9 @@ function FriendsList({ onMessage }) {
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-4">Friends</h2>
+      <h2 className="text-lg font-semibold mb-3">Friends</h2>
 
-      <form onSubmit={handleAdd} className="mb-4 flex gap-2">
+      <form onSubmit={handleAdd} className="mb-3 flex gap-2">
         <input
           type="text"
           value={username}
@@ -40,7 +41,8 @@ function FriendsList({ onMessage }) {
           placeholder="Add friend by username"
           className="flex-1 bg-slate-900/70 border border-slate-700 rounded px-3 py-2 text-slate-100 text-sm"
         />
-        <button type="submit" className="text-sm hover:text-gruvbox-orange">
+        <button type="submit" className="inline-flex items-center gap-1.5 text-sm hover:text-gruvbox-orange">
+          <UserPlus size={16} />
           Add
         </button>
       </form>
@@ -50,7 +52,7 @@ function FriendsList({ onMessage }) {
       {friends.length === 0 ? (
         <div className="text-slate-400">No friends yet</div>
       ) : (
-        <ul className="space-y-2">
+        <ul className="space-y-1.5">
           {friends.map((friend) => (
             <li key={friend.id} className="flex items-center gap-2">
               <div
@@ -62,9 +64,10 @@ function FriendsList({ onMessage }) {
                 {friend.display_name || friend.username}
               </span>
               <button
-                className="text-xs hover:text-gruvbox-orange"
+                className="inline-flex items-center gap-1 text-xs hover:text-gruvbox-orange"
                 onClick={() => onMessage?.(friend)}
               >
+                <MessageCircle size={14} />
                 Message
               </button>
             </li>
@@ -75,22 +78,24 @@ function FriendsList({ onMessage }) {
       {pending.length > 0 && (
         <div className="mt-4">
           <h3 className="text-sm text-slate-400 mb-2">Requests</h3>
-          <ul className="space-y-2 text-sm">
+          <ul className="space-y-1.5 text-sm">
             {pending.map((p) => (
               <li key={p.id} className="flex items-center gap-2">
                 <span className="flex-1 text-slate-300">
                   {p.display_name || p.username}
                 </span>
                 <button
-                  className="text-xs hover:text-gruvbox-orange"
+                  className="inline-flex items-center gap-1 text-xs hover:text-gruvbox-orange"
                   onClick={() => respondToRequest(p.friendshipId, "accepted")}
                 >
+                  <Check size={14} />
                   Accept
                 </button>
                 <button
-                  className="text-xs text-red-400 hover:text-red-300"
+                  className="inline-flex items-center gap-1 text-xs text-red-400 hover:text-red-300"
                   onClick={() => respondToRequest(p.friendshipId, "blocked")}
                 >
+                  <X size={14} />
                   Decline
                 </button>
               </li>

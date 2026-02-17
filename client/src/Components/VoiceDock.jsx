@@ -1,12 +1,24 @@
 import React from "react";
+import { Mic, MicOff, MonitorUp, PhoneOff, Video, VideoOff } from "lucide-react";
 
 function VoiceDock({ channel, voice }) {
   if (!channel) return null;
 
-  const { isConnected, isMuted, toggleMute, endCall, roomUsers } = voice;
+  const {
+    isConnected,
+    isMuted,
+    isVideoOff,
+    isScreenSharing,
+    toggleMute,
+    toggleVideo,
+    startScreenShare,
+    stopScreenShare,
+    endCall,
+    roomUsers,
+  } = voice;
 
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-6xl bg-slate-950/80 border border-slate-800 rounded p-3 z-40 shadow-lg">
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-6xl bg-slate-950/80 border border-slate-800 rounded p-2 z-40 shadow-lg">
       <div className="flex items-center justify-between">
         <div>
           <div className="text-xs text-slate-400">Voice</div>
@@ -15,19 +27,37 @@ function VoiceDock({ channel, voice }) {
           </div>
           <div className="text-xs text-slate-500">In room: {roomUsers?.length || 0}</div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={toggleMute}
-            className="px-3 py-1 text-xs font-medium hover:text-gruvbox-orange"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium hover:text-gruvbox-orange"
             disabled={!isConnected}
           >
+            {isMuted ? <MicOff size={14} /> : <Mic size={14} />}
             {isMuted ? "Unmute" : "Mute"}
           </button>
           <button
-            onClick={endCall}
-            className="px-3 py-1 text-xs font-medium hover:text-gruvbox-orange"
+            onClick={toggleVideo}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium hover:text-gruvbox-orange"
             disabled={!isConnected}
           >
+            {isVideoOff ? <Video size={14} /> : <VideoOff size={14} />}
+            {isVideoOff ? "Camera On" : "Camera Off"}
+          </button>
+          <button
+            onClick={isScreenSharing ? stopScreenShare : startScreenShare}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium hover:text-gruvbox-orange"
+            disabled={!isConnected}
+          >
+            <MonitorUp size={14} />
+            {isScreenSharing ? "Stop Share" : "Share Screen"}
+          </button>
+          <button
+            onClick={endCall}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium hover:text-gruvbox-orange"
+            disabled={!isConnected}
+          >
+            <PhoneOff size={14} />
             Leave
           </button>
         </div>

@@ -19,6 +19,7 @@ export function useWebRTC(roomId) {
   const [error, setError] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [roomUsers, setRoomUsers] = useState([]);
 
   const socketRef = useRef(null);
@@ -91,6 +92,19 @@ export function useWebRTC(roomId) {
     socketRef.current = socket;
     return socket;
   }, [roomId]);
+
+  const renegotiateAll = useCallback(async () => {
+    if (!socketRef.current) return;
+    const socket = socketRef.current;
+
+    for (const [userId, pc] of peerConnectionsRef.current.entries()) {
+      if (pc.signalingState !== "stable") continue;
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      socket.emit("offer", { offer, to: userId, roomId });
+    }
+  }, [roomId]);
+
 
   /**
    * Create a peer connection for a remote user
@@ -211,6 +225,9 @@ export function useWebRTC(roomId) {
    */
   const startScreenShare = useCallback(async () => {
     try {
+      if (!localStreamRef.current) {
+        throw new Error("Start a call before sharing your screen.");
+      }
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
         audio: true,
@@ -218,7 +235,7 @@ export function useWebRTC(roomId) {
 
       // Replace video track in all peer connections
       const videoTrack = screenStream.getVideoTracks()[0];
-      
+
       peerConnectionsRef.current.forEach((pc) => {
         const sender = pc.getSenders().find((s) => s.track?.kind === "video");
         if (sender) {
@@ -231,10 +248,14 @@ export function useWebRTC(roomId) {
         stopScreenShare();
       };
 
+      setIsScreenSharing(true);
+
       // Update local stream
       if (localStreamRef.current) {
         const oldVideoTrack = localStreamRef.current.getVideoTracks()[0];
-        localStreamRef.current.removeTrack(oldVideoTrack);
+        if (oldVideoTrack) {
+          localStreamRef.current.removeTrack(oldVideoTrack);
+        }
         localStreamRef.current.addTrack(videoTrack);
         setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
       }
@@ -261,11 +282,14 @@ export function useWebRTC(roomId) {
 
       if (localStreamRef.current) {
         const oldVideoTrack = localStreamRef.current.getVideoTracks()[0];
-        oldVideoTrack.stop();
-        localStreamRef.current.removeTrack(oldVideoTrack);
+        if (oldVideoTrack) {
+          oldVideoTrack.stop();
+          localStreamRef.current.removeTrack(oldVideoTrack);
+        }
         localStreamRef.current.addTrack(videoTrack);
         setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
       }
+      setIsScreenSharing(false);
     } catch (err) {
       console.error("Error stopping screen share:", err);
     }
@@ -288,14 +312,34 @@ export function useWebRTC(roomId) {
    * Toggle video on/off
    */
   const toggleVideo = useCallback(() => {
-    if (localStreamRef.current) {
-      const videoTrack = localStreamRef.current.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = !videoTrack.enabled;
-        setIsVideoOff(!videoTrack.enabled);
-      }
+    if (!localStreamRef.current) return;
+
+    const videoTrack = localStreamRef.current.getVideoTracks()[0];
+    if (!videoTrack) {
+      navigator.mediaDevices
+        .getUserMedia({ video: true })
+        .then((cameraStream) => {
+          const newTrack = cameraStream.getVideoTracks()[0];
+          if (!newTrack) return;
+          localStreamRef.current.addTrack(newTrack);
+          setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
+          peerConnectionsRef.current.forEach((pc) => {
+            pc.addTrack(newTrack, localStreamRef.current);
+          });
+          setIsVideoOff(false);
+    setIsScreenSharing(false);
+          renegotiateAll();
+        })
+        .catch((err) => {
+          console.error("Error enabling camera:", err);
+          setError(err.message);
+        });
+      return;
     }
-  }, []);
+
+    videoTrack.enabled = !videoTrack.enabled;
+    setIsVideoOff(!videoTrack.enabled);
+  }, [renegotiateAll]);
 
   /**
    * End the call
@@ -339,6 +383,7 @@ export function useWebRTC(roomId) {
     error,
     isMuted,
     isVideoOff,
+    isScreenSharing,
     roomUsers,
     startCall,
     endCall,

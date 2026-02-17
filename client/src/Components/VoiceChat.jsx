@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { Mic, MicOff, Phone, PhoneOff } from "lucide-react";
 import { useWebRTC } from "@/hooks";
 
 function VoiceChat({ channelId }) {
@@ -23,29 +24,32 @@ function VoiceChat({ channelId }) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="text-sm text-slate-400 mb-2">Voice channel</div>
+      <div className="text-xs uppercase tracking-wide text-slate-400 mb-2">Voice channel</div>
       {error && <div className="text-red-500 mb-2">{error}</div>}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         {!isConnected ? (
           <button
             onClick={() => startCall({ video: false, audio: true })}
-            className="px-4 py-2 text-sm font-medium hover:text-gruvbox-orange"
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium hover:text-gruvbox-orange"
           >
+            <Phone size={16} />
             Join Voice
           </button>
         ) : (
           <button
             onClick={endCall}
-            className="px-4 py-2 text-sm font-medium hover:text-gruvbox-orange"
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium hover:text-gruvbox-orange"
           >
+            <PhoneOff size={16} />
             Leave Voice
           </button>
         )}
         <button
           onClick={toggleMute}
-          className="px-4 py-2 text-sm font-medium hover:text-gruvbox-orange"
+          className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium hover:text-gruvbox-orange"
           disabled={!isConnected}
         >
+          {isMuted ? <MicOff size={16} /> : <Mic size={16} />}
           {isMuted ? "Unmute" : "Mute"}
         </button>
       </div>
