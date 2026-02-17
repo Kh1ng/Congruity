@@ -448,6 +448,8 @@ export function useWebRTC(roomId) {
         const sender = pc.getSenders().find((s) => s.track?.kind === "video");
         if (sender) {
           sender.replaceTrack(videoTrack);
+        } else if (localStreamRef.current) {
+          pc.addTrack(videoTrack, localStreamRef.current);
         }
       });
 
@@ -457,6 +459,7 @@ export function useWebRTC(roomId) {
       };
 
       setIsScreenSharing(true);
+      renegotiateAll();
 
       // Update local stream
       if (localStreamRef.current) {
@@ -492,6 +495,8 @@ export function useWebRTC(roomId) {
         const sender = pc.getSenders().find((s) => s.track?.kind === "video");
         if (sender) {
           sender.replaceTrack(videoTrack);
+        } else if (videoTrack && localStreamRef.current) {
+          pc.addTrack(videoTrack, localStreamRef.current);
         }
       });
 
@@ -506,6 +511,7 @@ export function useWebRTC(roomId) {
 
       setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
       setIsScreenSharing(false);
+      renegotiateAll();
     } catch (err) {
       console.error("Error stopping screen share:", err);
     }
