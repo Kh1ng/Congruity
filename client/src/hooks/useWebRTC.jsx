@@ -43,8 +43,8 @@ export function useWebRTC(roomId) {
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [roomUsers, setRoomUsers] = useState([]);
   const [localSocketId, setLocalSocketId] = useState(null);
-  const [audioLevels, setAudioLevels] = useState({});
-  const [audioWaveforms, setAudioWaveforms] = useState({});
+  const audioLevels = {};
+  const audioWaveforms = {};
   const [videoConstraints, setVideoConstraints] = useState({
     width: 1280,
     height: 720,
@@ -69,7 +69,6 @@ export function useWebRTC(roomId) {
   const meterActiveRef = useRef(false);
   const isConnectedRef = useRef(false);
   const endCallRef = useRef(null);
-  const enableAudioMeters = false;
 
   const ensureAudioContext = useCallback(async () => {
     if (!audioEnabledRef.current) return null;
@@ -643,108 +642,8 @@ export function useWebRTC(roomId) {
   }, [roomId, playCue]);
 
   useEffect(() => {
-    isConnectedRef.current = isConnected;
-  }, [isConnected]);
-
-  useEffect(() => {
     endCallRef.current = endCall;
   }, [endCall]);
-
-  // Audio level meters (single loop, gated by isConnectedRef)
-  useEffect(() => {
-    if (!enableAudioMeters) return;
-    let rafId;
-    let isActive = true;
-    let lastTick = 0;
-
-    const setupAnalyser = async (stream) => {
-      const context = await ensureAudioContext();
-      if (!context || !stream) return null;
-      const source = context.createMediaStreamSource(stream);
-      const analyser = context.createAnalyser();
-      analyser.fftSize = 512;
-      source.connect(analyser);
-      return { analyser, source };
-    };
-
-    const start = async () => {
-      const localAnalyser = localStreamRef.current
-        ? await setupAnalyser(localStreamRef.current)
-        : null;
-      const remoteAnalysers = new Map();
-
-      for (const [id, stream] of remoteStreamsRef.current.entries()) {
-        const analyser = await setupAnalyser(stream);
-        if (analyser) remoteAnalysers.set(id, analyser);
-      }
-
-      const tick = (ts) => {
-        if (!isActive) return;
-        if (ts - lastTick < 120) {
-          rafId = requestAnimationFrame(tick);
-          return;
-        }
-        lastTick = ts;
-
-        if (!isConnectedRef.current) {
-          rafId = requestAnimationFrame(tick);
-          return;
-        }
-
-        const nextLevels = {};
-        const nextWaveforms = {};
-
-        const readSignal = (analyser) => {
-          const buffer = new Uint8Array(analyser.frequencyBinCount);
-          analyser.getByteTimeDomainData(buffer);
-          let sum = 0;
-          const samples = [];
-          const step = Math.max(1, Math.floor(buffer.length / 32));
-          for (let i = 0; i < buffer.length; i += 1) {
-            const v = (buffer[i] - 128) / 128;
-            sum += v * v;
-            if (i % step === 0) {
-              samples.push(v);
-            }
-          }
-          const rms = Math.sqrt(sum / buffer.length);
-          return {
-            level: Math.min(1, rms * 3.5),
-            waveform: samples,
-          };
-        };
-
-        if (localAnalyser?.analyser) {
-          const { level, waveform } = readSignal(localAnalyser.analyser);
-          nextLevels.local = level;
-          nextWaveforms.local = waveform;
-        }
-
-        remoteAnalysers.forEach((entry, id) => {
-          const { level, waveform } = readSignal(entry.analyser);
-          nextLevels[id] = level;
-          nextWaveforms[id] = waveform;
-        });
-
-        setAudioLevels(nextLevels);
-        setAudioWaveforms(nextWaveforms);
-        rafId = requestAnimationFrame(tick);
-      };
-
-      rafId = requestAnimationFrame(tick);
-    };
-
-    if (!meterActiveRef.current) {
-      meterActiveRef.current = true;
-      start();
-    }
-
-    return () => {
-      isActive = false;
-      meterActiveRef.current = false;
-      if (rafId) cancelAnimationFrame(rafId);
-    };
-  }, [ensureAudioContext]);
 
   // Cleanup on unmount
   useEffect(() => {
