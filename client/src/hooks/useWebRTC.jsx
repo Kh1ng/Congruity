@@ -2,7 +2,13 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { io } from "socket.io-client";
 import { useAuth } from "@/hooks/useAuth";
 
-const SIGNALING_URL = import.meta.env.VITE_SIGNALING_URL || "ws://localhost:3001";
+const SIGNALING_URL = import.meta.env.VITE_SIGNALING_URL;
+const DEFAULT_SIGNALING_URL =
+  typeof window !== "undefined"
+    ? `${window.location.protocol === "https:" ? "wss" : "ws"}://${
+        window.location.hostname
+      }:3001`
+    : "ws://localhost:3001";
 
 const TURN_URL = import.meta.env.VITE_TURN_URL;
 const TURN_USERNAME = import.meta.env.VITE_TURN_USERNAME;
@@ -36,6 +42,7 @@ export function useWebRTC(roomId) {
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [roomUsers, setRoomUsers] = useState([]);
+  const [localSocketId, setLocalSocketId] = useState(null);
 
   const socketRef = useRef(null);
   const localSocketIdRef = useRef(null);
@@ -49,7 +56,7 @@ export function useWebRTC(roomId) {
   const initSocket = useCallback(() => {
     if (socketRef.current?.connected) return socketRef.current;
 
-    const socket = io(SIGNALING_URL, {
+    const socket = io(SIGNALING_URL || DEFAULT_SIGNALING_URL, {
       transports: ["websocket"],
       reconnection: true,
       reconnectionAttempts: 5,
@@ -58,6 +65,7 @@ export function useWebRTC(roomId) {
     socket.on("connect", () => {
       console.log("Connected to signaling server");
       localSocketIdRef.current = socket.id;
+      setLocalSocketId(socket.id);
       if (roomId) {
         socket.emit("join-room", { roomId, userId: user?.id });
       }
@@ -118,6 +126,7 @@ export function useWebRTC(roomId) {
       console.log("Disconnected from signaling server");
       setIsConnected(false);
       setRoomUsers([]);
+      setLocalSocketId(null);
     });
 
     socketRef.current = socket;
@@ -444,6 +453,7 @@ export function useWebRTC(roomId) {
     isVideoOff,
     isScreenSharing,
     roomUsers,
+    localSocketId,
     startCall,
     endCall,
     toggleMute,
