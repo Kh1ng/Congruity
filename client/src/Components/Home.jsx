@@ -193,7 +193,7 @@ function Home() {
   }, [memberMap, selectedFriend, selectedServer]);
 
   return (
-    <div>
+    <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
           <div className="text-lg font-semibold text-slate-100">
@@ -242,30 +242,32 @@ function Home() {
         </div>
       </div>
 
-      <AppShell
-        layout={layoutPreset}
-        regions={{
-          leftDock: (
-            <aside className="bg-slate-950/40 border border-slate-800 rounded p-2 min-h-0 h-full">
-              <DockStack dockId="left" panels={leftPanels} />
-            </aside>
-          ),
-          workspace: (
-            <main className="bg-slate-950/40 border border-slate-800 rounded p-3 flex flex-col">
-              {renderChannelPanel}
-            </main>
-          ),
-          rightDock: (
-            <aside className="bg-slate-950/40 border border-slate-800 rounded p-2 min-h-0 h-full">
-              {collapseSocial ? (
-                <div className="text-xs text-slate-500">Social</div>
-              ) : (
-                <DockStack dockId="right" panels={rightPanels} />
-              )}
-            </aside>
-          ),
-        }}
-      />
+      <div className="flex-1 min-h-0">
+        <AppShell
+          layout={layoutPreset}
+          regions={{
+            leftDock: (
+              <aside className="bg-slate-950/40 border border-slate-800 rounded p-2 min-h-0 h-full">
+                <DockStack dockId="left" panels={leftPanels} />
+              </aside>
+            ),
+            workspace: (
+              <main className="bg-slate-950/40 border border-slate-800 rounded p-3 flex flex-col min-h-0">
+                {renderChannelPanel}
+              </main>
+            ),
+            rightDock: (
+              <aside className="bg-slate-950/40 border border-slate-800 rounded p-2 min-h-0 h-full">
+                {collapseSocial ? (
+                  <div className="text-xs text-slate-500">Social</div>
+                ) : (
+                  <DockStack dockId="right" panels={rightPanels} />
+                )}
+              </aside>
+            ),
+          }}
+        />
+      </div>
 
       <VoiceDock channel={activeVoiceChannel} voice={voiceSession} />
     </div>
