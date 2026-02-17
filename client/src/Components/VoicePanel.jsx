@@ -60,6 +60,8 @@ function VoicePanel({ channel, voice, memberMap }) {
     const raw = localStorage.getItem("voice:autoVideo");
     return raw ? raw === "true" : true;
   });
+  const [hiddenStreams, setHiddenStreams] = React.useState(() => new Set());
+  const [focusedStreamId, setFocusedStreamId] = React.useState(null);
 
   useEffect(() => {
     localStorage.setItem("voice:autoVideo", String(autoVideo));
@@ -137,10 +139,16 @@ function VoicePanel({ channel, voice, memberMap }) {
       participant.stream.getVideoTracks().some((track) => track.readyState === "live" && track.enabled)
   );
 
-  const hasActiveVideo = videoParticipants.length > 0;
+  const visibleVideoParticipants = videoParticipants.filter(
+    (participant) => !hiddenStreams.has(participant.id)
+  );
+
+  const hasActiveVideo = visibleVideoParticipants.length > 0;
   const showVideoStage = autoVideo && hasActiveVideo;
 
-  const [gridCols, setGridCols] = React.useState(2);
+  const stageParticipants = focusedStreamId
+    ? visibleVideoParticipants.filter((participant) => participant.id === focusedStreamId)
+    : visibleVideoParticipants;
 
   return (
     <div className="flex flex-col h-full">
@@ -150,31 +158,82 @@ function VoicePanel({ channel, voice, memberMap }) {
           <div className="text-base font-semibold">#{channel.name}</div>
         </div>
         <div className="flex items-center gap-3 text-xs text-slate-400">
-          {showVideoStage && (
-            <div className="flex items-center gap-1">
-              <span>Grid</span>
-              {[1, 2, 3].map((cols) => (
-                <button
-                  key={cols}
-                  onClick={() => setGridCols(cols)}
-                  className={`px-2 py-0.5 rounded border ${
-                    gridCols === cols
-                      ? "border-gruvbox-orange text-gruvbox-orange"
-                      : "border-slate-700 hover:text-gruvbox-orange"
-                  }`}
-                >
-                  {cols}
-                </button>
-              ))}
-            </div>
-          )}
           <button
             onClick={() => setAutoVideo((prev) => !prev)}
             className="text-xs text-slate-400 hover:text-gruvbox-orange"
           >
             Auto video: {autoVideo ? "On" : "Off"}
           </button>
+          {focusedStreamId && (
+            <button
+              onClick={() => setFocusedStreamId(null)}
+              className="text-xs text-slate-400 hover:text-gruvbox-orange"
+            >
+              Exit Focus
+            </button>
+          )}
         </div>
+      </div>
+      <div className="flex flex-wrap gap-3 text-xs text-slate-400 mb-3">
+        <label className="flex items-center gap-2">
+          Cam
+          <select
+            value={`${videoConstraints.width}x${videoConstraints.height}`}
+            onChange={(e) => {
+              const [width, height] = e.target.value.split("x").map(Number);
+              setVideoConstraints((prev) => ({ ...prev, width, height }));
+            }}
+            className="bg-slate-900/60 border border-slate-800 rounded px-2 py-1"
+          >
+            <option value="640x360">640x360</option>
+            <option value="1280x720">1280x720</option>
+            <option value="1920x1080">1920x1080</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-2">
+          Cam FPS
+          <select
+            value={videoConstraints.frameRate}
+            onChange={(e) =>
+              setVideoConstraints((prev) => ({ ...prev, frameRate: Number(e.target.value) }))
+            }
+            className="bg-slate-900/60 border border-slate-800 rounded px-2 py-1"
+          >
+            <option value={24}>24</option>
+            <option value={30}>30</option>
+            <option value={60}>60</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-2">
+          Share
+          <select
+            value={`${screenConstraints.width}x${screenConstraints.height}`}
+            onChange={(e) => {
+              const [width, height] = e.target.value.split("x").map(Number);
+              setScreenConstraints((prev) => ({ ...prev, width, height }));
+            }}
+            className="bg-slate-900/60 border border-slate-800 rounded px-2 py-1"
+          >
+            <option value="1280x720">1280x720</option>
+            <option value="1920x1080">1920x1080</option>
+            <option value="2560x1440">2560x1440</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-2">
+          Share FPS
+          <select
+            value={screenConstraints.frameRate}
+            onChange={(e) =>
+              setScreenConstraints((prev) => ({ ...prev, frameRate: Number(e.target.value) }))
+            }
+            className="bg-slate-900/60 border border-slate-800 rounded px-2 py-1"
+          >
+            <option value={15}>15</option>
+            <option value={30}>30</option>
+            <option value={60}>60</option>
+          </select>
+        </label>
+      </div>
       </div>
       <div className="flex flex-wrap gap-3 text-xs text-slate-400 mb-3">
         <label className="flex items-center gap-2">
@@ -241,15 +300,14 @@ function VoicePanel({ channel, voice, memberMap }) {
       {showVideoStage && (
         <div
           className={`grid gap-3 mb-4 ${
-            gridCols === 1
+            focusedStreamId
               ? "grid-cols-1"
-              : gridCols === 2
-                ? "grid-cols-1 md:grid-cols-2"
-                : "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
+              : visibleVideoParticipants.length > 1
+                ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
+                : "grid-cols-1"
           }`}
         >
-          {videoParticipants.map((participant) => {
-            const initials = getInitials(participant.name);
+          {stageParticipants.map((participant) => {
             const meterKey = participant.isLocal ? "local" : participant.id;
             const level = audioLevels?.[meterKey] || 0;
             const waveform = audioWaveforms?.[meterKey] || [];
@@ -272,9 +330,25 @@ function VoicePanel({ channel, voice, memberMap }) {
                 <div
                   className={`relative flex h-56 w-full items-center justify-center overflow-hidden rounded-lg border-2 ${
                     isSpeaking ? "border-gruvbox-orange" : "border-slate-700"
-                  } bg-slate-900 text-lg font-semibold text-slate-100`}
+                  } bg-slate-900 text-lg font-semibold text-slate-100 cursor-pointer`}
+                  onClick={() =>
+                    setFocusedStreamId((prev) => (prev === participant.id ? null : participant.id))
+                  }
                 >
                   <ParticipantMedia stream={participant.stream} isLocal={participant.isLocal} fit="contain" />
+                  <button
+                    className="absolute top-2 right-2 text-xs rounded border border-slate-700 bg-slate-950/70 px-2 py-1 hover:text-gruvbox-orange"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setHiddenStreams((prev) => {
+                        const next = new Set(prev);
+                        next.add(participant.id);
+                        return next;
+                      });
+                    }}
+                  >
+                    Hide
+                  </button>
                 </div>
                 <div className="mt-2 flex items-center justify-between">
                   <div className="text-sm font-medium text-slate-100">
