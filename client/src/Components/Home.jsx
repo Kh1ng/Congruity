@@ -1,10 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { LayoutGrid } from "lucide-react";
 import { useWebRTC, useServerMembers } from "@/hooks";
-import FriendsList from "./FriendsList";
 import ServerList from "./ServerList";
 import ChannelList from "./ChannelList";
-import DMChat from "./DMChat";
 import Messages from "./Message";
 import VoiceDock from "./VoiceDock";
 import ServerProfilePanel from "./ServerProfilePanel";
@@ -16,7 +14,6 @@ import { registerPanel, listPanelsByDock } from "@/modules";
 function Home() {
   const [selectedServer, setSelectedServer] = useState(null);
   const [selectedChannel, setSelectedChannel] = useState(null);
-  const [selectedFriend, setSelectedFriend] = useState(null);
   const [activeVoiceChannel, setActiveVoiceChannel] = useState(null);
   const [collapseServers, setCollapseServers] = useState(false);
   const [collapseChannels, setCollapseChannels] = useState(false);
@@ -144,19 +141,6 @@ function Home() {
   }, [collapseChannels, collapseServers, selectedServer?.id, selectedChannel?.id]);
 
   const rightPanels = useMemo(() => {
-    registerPanel("friends", {
-      dock: "right",
-      title: "Friends",
-      order: 1,
-      content: <FriendsList onMessage={(friend) => setSelectedFriend(friend)} />,
-    });
-
-    registerPanel("dm", {
-      dock: "right",
-      title: "DM",
-      order: 2,
-      content: <DMChat friend={selectedFriend} />,
-    });
 
     registerPanel("settings", {
       dock: "right",
@@ -180,7 +164,7 @@ function Home() {
     });
 
     return listPanelsByDock("right");
-  }, [memberMap, selectedFriend, selectedServer]);
+  }, [memberMap, selectedServer]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">

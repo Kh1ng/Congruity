@@ -1,5 +1,14 @@
 import React, { useEffect, useMemo, useRef } from "react";
-import { Mic, MicOff, MonitorUp, PhoneOff, Video, VideoOff } from "lucide-react";
+import {
+  Headphones,
+  Mic,
+  MicOff,
+  MonitorUp,
+  PhoneOff,
+  Settings,
+  Video,
+  VideoOff,
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 function StreamPreview({ stream }) {
@@ -128,6 +137,45 @@ function VoiceDock({ channel, voice, memberMap }) {
             title="Leave"
           >
             <PhoneOff size={14} />
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between rounded border border-slate-800 bg-slate-950/70 px-3 py-2">
+        <div className="flex items-center gap-2">
+          <div className="h-9 w-9 rounded-full bg-slate-900/80 border border-slate-700 flex items-center justify-center text-xs font-semibold text-slate-200">
+            {participants[0]?.initials || "ME"}
+          </div>
+          <div className="text-xs">
+            <div className="text-slate-100 font-semibold">{participants[0]?.name || "You"}</div>
+            <div className="text-slate-400">chillin</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="inline-flex items-center justify-center rounded bg-slate-900/60 px-2.5 py-1 text-xs hover:text-gruvbox-orange"
+            title={isMuted ? "Unmute" : "Mute"}
+            onClick={toggleMute}
+            disabled={!isConnected}
+          >
+            {isMuted ? <MicOff size={14} /> : <Mic size={14} />}
+          </button>
+          <button
+            type="button"
+            className="inline-flex items-center justify-center rounded bg-slate-900/60 px-2.5 py-1 text-xs hover:text-gruvbox-orange"
+            title="Deafen"
+            onClick={() => {}}
+          >
+            <Headphones size={14} />
+          </button>
+          <button
+            type="button"
+            className="inline-flex items-center justify-center rounded bg-slate-900/60 px-2.5 py-1 text-xs hover:text-gruvbox-orange"
+            title="Voice settings"
+            onClick={() => {}}
+          >
+            <Settings size={14} />
           </button>
         </div>
       </div>
