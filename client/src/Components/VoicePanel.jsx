@@ -125,13 +125,16 @@ function VoicePanel({ channel, voice, memberMap }) {
     return entries;
   }, [memberMap, user, roomUsers, localSocketId, isMuted, remoteStreamMap, localStream]);
 
-  const hasActiveVideo = participants.some(
+  const videoParticipants = participants.filter(
     (participant) =>
       participant.stream &&
       participant.stream.getVideoTracks().some((track) => track.readyState === "live" && track.enabled)
   );
 
-  const showVideoTiles = autoVideo && hasActiveVideo;
+  const hasActiveVideo = videoParticipants.length > 0;
+  const showVideoStage = autoVideo && hasActiveVideo;
+
+  const [gridCols, setGridCols] = React.useState(2);
 
   return (
     <div className="flex flex-col h-full">
@@ -140,20 +143,98 @@ function VoicePanel({ channel, voice, memberMap }) {
           <div className="text-xs uppercase tracking-wide text-slate-400">Voice channel</div>
           <div className="text-base font-semibold">#{channel.name}</div>
         </div>
-        <button
-          onClick={() => setAutoVideo((prev) => !prev)}
-          className="text-xs text-slate-400 hover:text-gruvbox-orange"
-        >
-          Auto video: {autoVideo ? "On" : "Off"}
-        </button>
+        <div className="flex items-center gap-3 text-xs text-slate-400">
+          {showVideoStage && (
+            <div className="flex items-center gap-1">
+              <span>Grid</span>
+              {[1, 2, 3].map((cols) => (
+                <button
+                  key={cols}
+                  onClick={() => setGridCols(cols)}
+                  className={`px-2 py-0.5 rounded border ${
+                    gridCols === cols
+                      ? "border-gruvbox-orange text-gruvbox-orange"
+                      : "border-slate-700 hover:text-gruvbox-orange"
+                  }`}
+                >
+                  {cols}
+                </button>
+              ))}
+            </div>
+          )}
+          <button
+            onClick={() => setAutoVideo((prev) => !prev)}
+            className="text-xs text-slate-400 hover:text-gruvbox-orange"
+          >
+            Auto video: {autoVideo ? "On" : "Off"}
+          </button>
+        </div>
       </div>
       {error && <div className="text-red-500 mb-2">{error}</div>}
 
-      <div
-        className={`grid gap-3 mb-4 ${
-          showVideoTiles ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3" : "grid-cols-2 md:grid-cols-3 xl:grid-cols-4"
-        }`}
-      >
+      {showVideoStage && (
+        <div
+          className={`grid gap-3 mb-4 ${
+            gridCols === 1
+              ? "grid-cols-1"
+              : gridCols === 2
+                ? "grid-cols-1 md:grid-cols-2"
+                : "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
+          }`}
+        >
+          {videoParticipants.map((participant) => {
+            const initials = getInitials(participant.name);
+            const meterKey = participant.isLocal ? "local" : participant.id;
+            const level = audioLevels?.[meterKey] || 0;
+            const waveform = audioWaveforms?.[meterKey] || [];
+            const isSpeaking = level > 0.01;
+            const points = waveform.length
+              ? waveform
+                  .map((value, index) => {
+                    const x = (index / (waveform.length - 1)) * 80;
+                    const y = 20 - value * 14;
+                    return `${x.toFixed(1)},${y.toFixed(1)}`;
+                  })
+                  .join(" ")
+              : "0,20 80,20";
+
+            return (
+              <div
+                key={`video-${participant.id}`}
+                className="relative rounded-xl border border-slate-800 bg-slate-950/40 p-3"
+              >
+                <div
+                  className={`relative flex h-56 w-full items-center justify-center overflow-hidden rounded-lg border-2 ${
+                    isSpeaking ? "border-gruvbox-orange" : "border-slate-700"
+                  } bg-slate-900 text-lg font-semibold text-slate-100`}
+                >
+                  <ParticipantMedia stream={participant.stream} isLocal={participant.isLocal} />
+                </div>
+                <div className="mt-2 flex items-center justify-between">
+                  <div className="text-sm font-medium text-slate-100">
+                    {participant.isLocal ? "You" : participant.name}
+                  </div>
+                  <div className="text-xs text-slate-400">
+                    {isSpeaking ? "Speaking" : "Idle"}
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <svg viewBox="0 0 80 40" className="h-6 w-full">
+                    <polyline
+                      fill="none"
+                      stroke={isSpeaking ? "#d79921" : "#64748b"}
+                      strokeWidth="2"
+                      points={points}
+                    />
+                  </svg>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-3 mb-4">
         {participants.map((participant) => {
           const initials = getInitials(participant.name);
           const meterKey = participant.isLocal ? "local" : participant.id;
@@ -176,11 +257,9 @@ function VoicePanel({ channel, voice, memberMap }) {
               className="flex flex-col items-center gap-2 rounded-lg border border-slate-800 bg-slate-950/40 p-3"
             >
               <div
-                className={`relative flex items-center justify-center rounded-lg border-2 ${
+                className={`relative flex h-20 w-20 items-center justify-center rounded-full border-2 ${
                   isSpeaking ? "border-gruvbox-orange" : "border-slate-700"
-                } bg-slate-900 text-lg font-semibold text-slate-100 overflow-hidden ${
-                  showVideoTiles ? "h-40 w-full" : "h-20 w-20 rounded-full"
-                }`}
+                } bg-slate-900 text-lg font-semibold text-slate-100 overflow-hidden`}
               >
                 <div className="absolute -bottom-3 left-1/2 w-20 -translate-x-1/2">
                   <svg viewBox="0 0 80 40" className="h-6 w-full">
@@ -192,9 +271,7 @@ function VoicePanel({ channel, voice, memberMap }) {
                     />
                   </svg>
                 </div>
-                {showVideoTiles && participant.stream ? (
-                  <ParticipantMedia stream={participant.stream} isLocal={participant.isLocal} />
-                ) : participant.avatar ? (
+                {participant.avatar ? (
                   <img
                     src={participant.avatar}
                     alt={participant.name}
