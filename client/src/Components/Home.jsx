@@ -23,6 +23,7 @@ function Home() {
   const [collapseChannels, setCollapseChannels] = useState(false);
   const [collapseSocial, setCollapseSocial] = useState(true);
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
+  const disableVoicePanel = true;
 
   const resetLayout = () => {
     localStorage.removeItem("layoutPrefs");
@@ -61,7 +62,12 @@ function Home() {
 
   const renderChannelPanel = useMemo(() => {
     if (!selectedChannel) return <Messages channelId={null} />;
-    if (selectedChannel.type === "voice" || selectedChannel.type === "video") {
+        if (selectedChannel.type === "voice" || selectedChannel.type === "video") {
+      if (disableVoicePanel) {
+        return (
+          <div className="text-slate-400">Voice panel temporarily disabled for render-loop isolation.</div>
+        );
+      }
       return (
         <VoicePanel
           channel={selectedChannel}
@@ -135,7 +141,7 @@ function Home() {
             setSelectedChannel(channel);
             if (channel.type === "voice" || channel.type === "video") {
               setActiveVoiceChannel(channel);
-              if (!voiceSession.isConnected) {
+              if (!disableVoicePanel && !voiceSession.isConnected) {
                 voiceSession.startCall({ video: channel.type === "video", audio: true });
               }
             }
