@@ -11,7 +11,6 @@ import VoiceDock from "./VoiceDock";
 import ServerProfilePanel from "./ServerProfilePanel";
 import DockStack from "./DockStack";
 import SettingsView from "./SettingsView";
-import SubagentPanel from "./SubagentPanel";
 import AppShell from "./AppShell";
 import { registerPanel, listPanelsByDock } from "@/modules";
 
@@ -130,22 +129,18 @@ function Home() {
         <ChannelList
           serverId={selectedServer?.id}
           selectedChannelId={selectedChannel?.id}
+          selectedChannel={selectedChannel}
+          memberMap={memberMap}
           onSelectChannel={(channel) => {
             setSelectedChannel(channel);
             if (channel.type === "voice" || channel.type === "video") {
               setActiveVoiceChannel(channel);
+              if (!voiceSession.isConnected) {
+                voiceSession.startCall({ video: channel.type === "video", audio: true });
+              }
             }
           }}
         />
-      ),
-    });
-
-    registerPanel("links", {
-      dock: "left",
-      title: "Links",
-      order: 3,
-      content: (
-        <div className="text-xs text-slate-500">Voice & Video</div>
       ),
     });
 
@@ -186,13 +181,6 @@ function Home() {
       content: (
         <ServerProfilePanel server={selectedServer} memberMap={memberMap} />
       ),
-    });
-
-    registerPanel("subagents", {
-      dock: "right",
-      title: "Subagents",
-      order: 5,
-      content: <SubagentPanel />,
     });
 
     return listPanelsByDock("right");

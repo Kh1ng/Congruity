@@ -3,7 +3,7 @@ import { Hash, Volume2, Video } from "lucide-react";
 import { useChannels } from "@/hooks";
 import Spinner from "./Spinner";
 
-function ChannelList({ serverId, selectedChannelId, onSelectChannel }) {
+function ChannelList({ serverId, selectedChannelId, selectedChannel, memberMap, onSelectChannel }) {
   const { textChannels, voiceChannels, videoChannels, loading, error } =
     useChannels(serverId);
 
@@ -42,6 +42,19 @@ function ChannelList({ serverId, selectedChannelId, onSelectChannel }) {
             );
           })}
         </ul>
+        {selectedChannel && selectedChannel.type === "voice" && memberMap && (
+          <div className="mt-2 rounded border border-slate-800 bg-slate-950/40 p-2">
+            <div className="text-[0.65rem] uppercase tracking-wide text-slate-400 mb-1">Members</div>
+            <div className="space-y-1 text-xs text-slate-300">
+              {Object.values(memberMap).map((member, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-slate-500" />
+                  <span>{member.nickname || member.profile?.display_name || member.profile?.username || 'Unknown'}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="mb-2">
@@ -64,6 +77,19 @@ function ChannelList({ serverId, selectedChannelId, onSelectChannel }) {
             );
           })}
         </ul>
+        {selectedChannel && selectedChannel.type === "voice" && memberMap && (
+          <div className="mt-2 rounded border border-slate-800 bg-slate-950/40 p-2">
+            <div className="text-[0.65rem] uppercase tracking-wide text-slate-400 mb-1">Members</div>
+            <div className="space-y-1 text-xs text-slate-300">
+              {Object.values(memberMap).map((member, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-slate-500" />
+                  <span>{member.nickname || member.profile?.display_name || member.profile?.username || "Unknown"}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {videoChannels.length > 0 && (

@@ -62,6 +62,8 @@ function VoicePanel({ channel, voice, memberMap }) {
   });
   const [hiddenStreams, setHiddenStreams] = React.useState(() => new Set());
   const [focusedStreamId, setFocusedStreamId] = React.useState(null);
+  const [showCamSettings, setShowCamSettings] = React.useState(false);
+  const [showShareSettings, setShowShareSettings] = React.useState(false);
 
   if (!channel) {
     return <div className="text-slate-400">Select a voice channel to join.</div>;
@@ -336,6 +338,108 @@ function VoicePanel({ channel, voice, memberMap }) {
         </div>
       )}
 
+      {showCamSettings && (
+        <div className="mb-3 rounded border border-slate-800 bg-slate-950/80 p-3 text-xs text-slate-300">
+          <div className="mb-2 font-semibold text-slate-200">Camera settings</div>
+          <div className="flex flex-wrap gap-3">
+            <label className="flex items-center gap-2">
+              Cam
+              <select
+                value={String(videoConstraints.width) + 'x' + String(videoConstraints.height)}
+                onChange={(e) => {
+                  const [width, height] = e.target.value.split('x').map(Number);
+                  setVideoConstraints((prev) => ({ ...prev, width, height }));
+                }}
+                className="bg-slate-900/60 border border-slate-800 rounded px-2 py-1"
+              >
+                <option value="640x360">640x360</option>
+                <option value="1280x720">1280x720</option>
+                <option value="1920x1080">1920x1080</option>
+              </select>
+            </label>
+            <label className="flex items-center gap-2">
+              Cam FPS
+              <select
+                value={videoConstraints.frameRate}
+                onChange={(e) =>
+                  setVideoConstraints((prev) => ({ ...prev, frameRate: Number(e.target.value) }))
+                }
+                className="bg-slate-900/60 border border-slate-800 rounded px-2 py-1"
+              >
+                <option value={24}>24</option>
+                <option value={30}>30</option>
+                <option value={60}>60</option>
+              </select>
+            </label>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <button
+              className="rounded border border-slate-700 px-3 py-1 hover:text-gruvbox-orange"
+              onClick={() => { setShowCamSettings(false); toggleVideo(); }}
+            >
+              Start Camera
+            </button>
+            <button
+              className="rounded border border-slate-700 px-3 py-1 hover:text-gruvbox-orange"
+              onClick={() => setShowCamSettings(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showShareSettings && (
+        <div className="mb-3 rounded border border-slate-800 bg-slate-950/80 p-3 text-xs text-slate-300">
+          <div className="mb-2 font-semibold text-slate-200">Screen share settings</div>
+          <div className="flex flex-wrap gap-3">
+            <label className="flex items-center gap-2">
+              Share
+              <select
+                value={String(screenConstraints.width) + 'x' + String(screenConstraints.height)}
+                onChange={(e) => {
+                  const [width, height] = e.target.value.split('x').map(Number);
+                  setScreenConstraints((prev) => ({ ...prev, width, height }));
+                }}
+                className="bg-slate-900/60 border border-slate-800 rounded px-2 py-1"
+              >
+                <option value="1280x720">1280x720</option>
+                <option value="1920x1080">1920x1080</option>
+                <option value="2560x1440">2560x1440</option>
+              </select>
+            </label>
+            <label className="flex items-center gap-2">
+              Share FPS
+              <select
+                value={screenConstraints.frameRate}
+                onChange={(e) =>
+                  setScreenConstraints((prev) => ({ ...prev, frameRate: Number(e.target.value) }))
+                }
+                className="bg-slate-900/60 border border-slate-800 rounded px-2 py-1"
+              >
+                <option value={15}>15</option>
+                <option value={30}>30</option>
+                <option value={60}>60</option>
+              </select>
+            </label>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <button
+              className="rounded border border-slate-700 px-3 py-1 hover:text-gruvbox-orange"
+              onClick={() => { setShowShareSettings(false); startScreenShare(); }}
+            >
+              Start Share
+            </button>
+            <button
+              className="rounded border border-slate-700 px-3 py-1 hover:text-gruvbox-orange"
+              onClick={() => setShowShareSettings(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center gap-2 flex-wrap">
         {!isConnected ? (
           <button
@@ -363,7 +467,7 @@ function VoicePanel({ channel, voice, memberMap }) {
           {isMuted ? "Unmute" : "Mute"}
         </button>
         <button
-          onClick={toggleVideo}
+          onClick={() => (isVideoOff ? setShowCamSettings(true) : toggleVideo())}
           className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium hover:text-gruvbox-orange"
           disabled={!isConnected}
         >
@@ -371,7 +475,7 @@ function VoicePanel({ channel, voice, memberMap }) {
           {isVideoOff ? "Camera On" : "Camera Off"}
         </button>
         <button
-          onClick={isScreenSharing ? stopScreenShare : startScreenShare}
+          onClick={() => (isScreenSharing ? stopScreenShare() : setShowShareSettings(true))}
           className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium hover:text-gruvbox-orange"
           disabled={!isConnected}
         >
