@@ -25,6 +25,17 @@ function Home() {
   const [collapseSocial, setCollapseSocial] = useState(true);
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
 
+  const resetLayout = () => {
+    localStorage.removeItem("layoutPrefs");
+    ["left", "right"].forEach((dockId) => {
+      localStorage.removeItem(`dock:${dockId}:order`);
+      localStorage.removeItem(`dock:${dockId}:sizes`);
+    });
+    setCollapseServers(false);
+    setCollapseChannels(false);
+    setCollapseSocial(true);
+  };
+
   const voiceSession = useWebRTC(activeVoiceChannel?.id);
   const { memberMap } = useServerMembers(selectedServer?.id);
 
