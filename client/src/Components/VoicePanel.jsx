@@ -20,11 +20,19 @@ function ParticipantMedia({ stream, isLocal }) {
     false;
 
   useEffect(() => {
-    if (videoRef.current && stream && hasLiveVideo) {
-      videoRef.current.srcObject = stream;
+    if (videoRef.current) {
+      if (stream && hasLiveVideo) {
+        videoRef.current.srcObject = stream;
+      } else {
+        videoRef.current.srcObject = null;
+      }
     }
-    if (audioRef.current && stream && hasLiveAudio) {
-      audioRef.current.srcObject = stream;
+    if (audioRef.current) {
+      if (stream && hasLiveAudio) {
+        audioRef.current.srcObject = stream;
+      } else {
+        audioRef.current.srcObject = null;
+      }
     }
   }, [stream, hasLiveVideo, hasLiveAudio]);
 
@@ -46,6 +54,14 @@ function ParticipantMedia({ stream, isLocal }) {
 
 function VoicePanel({ channel, voice, memberMap }) {
   const { user } = useAuth();
+  const [autoVideo, setAutoVideo] = React.useState(() => {
+    const raw = localStorage.getItem("voice:autoVideo");
+    return raw ? raw === "true" : true;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("voice:autoVideo", String(autoVideo));
+  }, [autoVideo]);
 
   if (!channel) {
     return <div className="text-slate-400">Select a voice channel to join.</div>;
@@ -109,13 +125,35 @@ function VoicePanel({ channel, voice, memberMap }) {
     return entries;
   }, [memberMap, user, roomUsers, localSocketId, isMuted, remoteStreamMap, localStream]);
 
+  const hasActiveVideo = participants.some(
+    (participant) =>
+      participant.stream &&
+      participant.stream.getVideoTracks().some((track) => track.readyState === "live" && track.enabled)
+  );
+
+  const showVideoTiles = autoVideo && hasActiveVideo;
+
   return (
     <div className="flex flex-col h-full">
-      <div className="text-xs uppercase tracking-wide text-slate-400 mb-2">Voice channel</div>
-      <div className="text-base font-semibold mb-3">#{channel.name}</div>
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <div className="text-xs uppercase tracking-wide text-slate-400">Voice channel</div>
+          <div className="text-base font-semibold">#{channel.name}</div>
+        </div>
+        <button
+          onClick={() => setAutoVideo((prev) => !prev)}
+          className="text-xs text-slate-400 hover:text-gruvbox-orange"
+        >
+          Auto video: {autoVideo ? "On" : "Off"}
+        </button>
+      </div>
       {error && <div className="text-red-500 mb-2">{error}</div>}
 
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-4 mb-4">
+      <div
+        className={`grid gap-3 mb-4 ${
+          showVideoTiles ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3" : "grid-cols-2 md:grid-cols-3 xl:grid-cols-4"
+        }`}
+      >
         {participants.map((participant) => {
           const initials = getInitials(participant.name);
           const meterKey = participant.isLocal ? "local" : participant.id;
@@ -138,9 +176,11 @@ function VoicePanel({ channel, voice, memberMap }) {
               className="flex flex-col items-center gap-2 rounded-lg border border-slate-800 bg-slate-950/40 p-3"
             >
               <div
-                className={`relative flex h-20 w-20 items-center justify-center rounded-full border-2 ${
+                className={`relative flex items-center justify-center rounded-lg border-2 ${
                   isSpeaking ? "border-gruvbox-orange" : "border-slate-700"
-                } bg-slate-900 text-lg font-semibold text-slate-100 overflow-hidden`}
+                } bg-slate-900 text-lg font-semibold text-slate-100 overflow-hidden ${
+                  showVideoTiles ? "h-40 w-full" : "h-20 w-20 rounded-full"
+                }`}
               >
                 <div className="absolute -bottom-3 left-1/2 w-20 -translate-x-1/2">
                   <svg viewBox="0 0 80 40" className="h-6 w-full">
@@ -152,7 +192,7 @@ function VoicePanel({ channel, voice, memberMap }) {
                     />
                   </svg>
                 </div>
-                {participant.stream ? (
+                {showVideoTiles && participant.stream ? (
                   <ParticipantMedia stream={participant.stream} isLocal={participant.isLocal} />
                 ) : participant.avatar ? (
                   <img
