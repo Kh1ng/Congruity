@@ -63,6 +63,7 @@ export function useWebRTC(roomId) {
   const peerMetaRef = useRef(new Map());
   const pendingCandidatesRef = useRef(new Map());
   const localStreamRef = useRef(null);
+  const remoteStreamsRef = useRef(new Map());
   const audioContextRef = useRef(null);
   const audioEnabledRef = useRef(false);
   const meterActiveRef = useRef(false);
@@ -186,6 +187,7 @@ export function useWebRTC(roomId) {
         const inboundStream = event.streams?.[0]
           ? event.streams[0]
           : new MediaStream([event.track]);
+        remoteStreamsRef.current.set(userId, inboundStream);
         setRemoteStreams((prev) => {
           const updated = new Map(prev);
           updated.set(userId, inboundStream);
@@ -629,6 +631,7 @@ export function useWebRTC(roomId) {
     }
 
     setLocalStream(null);
+    remoteStreamsRef.current = new Map();
     setRemoteStreams(new Map());
     setIsConnected(false);
     setIsMuted(false);
@@ -640,8 +643,9 @@ export function useWebRTC(roomId) {
   useEffect(() => {
     let rafId;
     let isActive = true;
+    let lastTick = 0;
 
-    const setupAnalyser = async (stream, key) => {
+    const setupAnalyser = async (stream) => {
       const context = await ensureAudioContext();
       if (!context || !stream) return null;
       const source = context.createMediaStreamSource(stream);
@@ -653,17 +657,23 @@ export function useWebRTC(roomId) {
 
     const start = async () => {
       const localAnalyser = localStreamRef.current
-        ? await setupAnalyser(localStreamRef.current, "local")
+        ? await setupAnalyser(localStreamRef.current)
         : null;
       const remoteAnalysers = new Map();
 
-      for (const [id, stream] of remoteStreams.entries()) {
-        const analyser = await setupAnalyser(stream, id);
+      for (const [id, stream] of remoteStreamsRef.current.entries()) {
+        const analyser = await setupAnalyser(stream);
         if (analyser) remoteAnalysers.set(id, analyser);
       }
 
-      const tick = () => {
+      const tick = (ts) => {
         if (!isActive) return;
+        if (ts - lastTick < 80) {
+          rafId = requestAnimationFrame(tick);
+          return;
+        }
+        lastTick = ts;
+
         const nextLevels = {};
         const nextWaveforms = {};
 
@@ -704,7 +714,7 @@ export function useWebRTC(roomId) {
         rafId = requestAnimationFrame(tick);
       };
 
-      tick();
+      rafId = requestAnimationFrame(tick);
     };
 
     if (isConnected) {
@@ -723,7 +733,7 @@ export function useWebRTC(roomId) {
       meterActiveRef.current = false;
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [isConnected, remoteStreams, ensureAudioContext]);
+  }, [isConnected, ensureAudioContext]);
 
   // Cleanup on unmount
   useEffect(() => {
