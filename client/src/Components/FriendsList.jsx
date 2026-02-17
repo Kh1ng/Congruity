@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { useFriends } from "@/hooks";
+import Spinner from "./Spinner";
 
 function FriendsList({ onMessage }) {
-  const { friends, pending, loading, error, addFriendByUsername } = useFriends();
+  const { friends, pending, outgoing, loading, error, addFriendByUsername, respondToRequest } = useFriends();
   const [username, setUsername] = useState("");
 
   const handleAdd = async (e) => {
@@ -20,7 +21,9 @@ function FriendsList({ onMessage }) {
     return (
       <div>
         <h2 className="text-xl font-bold mb-4">Friends</h2>
-        <div className="text-slate-400">Loading...</div>
+        <div className="text-slate-400 flex items-center gap-2">
+          <Spinner size={14} /> Loading...
+        </div>
       </div>
     );
   }
@@ -71,12 +74,37 @@ function FriendsList({ onMessage }) {
 
       {pending.length > 0 && (
         <div className="mt-4">
-          <h3 className="text-sm text-slate-400 mb-2">Pending</h3>
-          <ul className="space-y-1 text-sm">
+          <h3 className="text-sm text-slate-400 mb-2">Requests</h3>
+          <ul className="space-y-2 text-sm">
             {pending.map((p) => (
-              <li key={p.id} className="text-slate-300">
-                {p.display_name || p.username}
+              <li key={p.id} className="flex items-center gap-2">
+                <span className="flex-1 text-slate-300">
+                  {p.display_name || p.username}
+                </span>
+                <button
+                  className="text-xs hover:text-gruvbox-orange"
+                  onClick={() => respondToRequest(p.friendshipId, "accepted")}
+                >
+                  Accept
+                </button>
+                <button
+                  className="text-xs text-red-400 hover:text-red-300"
+                  onClick={() => respondToRequest(p.friendshipId, "blocked")}
+                >
+                  Decline
+                </button>
               </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {outgoing.length > 0 && (
+        <div className="mt-4">
+          <h3 className="text-sm text-slate-400 mb-2">Pending Outgoing</h3>
+          <ul className="space-y-1 text-sm text-slate-300">
+            {outgoing.map((p) => (
+              <li key={p.id}>{p.display_name || p.username}</li>
             ))}
           </ul>
         </div>

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useServers } from "@/hooks";
+import Spinner from "./Spinner";
 
 function ServerList({ onSelectServer }) {
   const { servers, loading, error, createServer, joinServer } = useServers();
@@ -7,16 +8,22 @@ function ServerList({ onSelectServer }) {
   const [newServerName, setNewServerName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [selectedId, setSelectedId] = useState(null);
+  const [hostingType, setHostingType] = useState("self_hosted");
+  const [createError, setCreateError] = useState(null);
+  const [createStep, setCreateStep] = useState(1);
 
   const handleCreate = async (e) => {
     e.preventDefault();
+    setCreateError(null);
     if (!newServerName.trim()) return;
     try {
-      await createServer(newServerName);
+      await createServer(newServerName, null, hostingType);
       setNewServerName("");
       setShowCreate(false);
+      setCreateStep(1);
+      setHostingType("self_hosted");
     } catch (err) {
-      alert(err.message);
+      setCreateError(err.message || "Unable to create server");
     }
   };
 
@@ -32,7 +39,11 @@ function ServerList({ onSelectServer }) {
   };
 
   if (loading) {
-    return <div>Loading servers...</div>;
+    return (
+      <div className="text-slate-400 flex items-center gap-2">
+        <Spinner size={14} /> Loading servers...
+      </div>
+    );
   }
 
   if (error) {
@@ -52,18 +63,63 @@ function ServerList({ onSelectServer }) {
       </div>
 
       {showCreate && (
-        <form onSubmit={handleCreate} className="mb-4 p-2 border rounded">
-          <input
-            type="text"
-            value={newServerName}
-            onChange={(e) => setNewServerName(e.target.value)}
-            placeholder="Server name"
-            className="w-full bg-slate-900/70 border border-slate-700 rounded px-3 py-2 text-slate-100 mb-2"
-          />
-          <button type="submit" className="text-sm hover:text-gruvbox-orange">
-            Create Server
-          </button>
-        </form>
+        <div className="mb-4 p-3 border border-slate-700 rounded space-y-3">
+          {createStep === 1 && (
+            <div className="space-y-2">
+              <div className="text-xs text-slate-400 uppercase">Hosting</div>
+              <button
+                type="button"
+                className={`w-full text-left px-3 py-2 rounded border ${
+                  hostingType === "self_hosted"
+                    ? "border-gruvbox-orange text-gruvbox-orange"
+                    : "border-slate-700 text-slate-200"
+                }`}
+                onClick={() => {
+                  setHostingType("self_hosted");
+                  setCreateStep(2);
+                }}
+              >
+                Self-hosted • Free
+              </button>
+              <button
+                type="button"
+                className={`w-full text-left px-3 py-2 rounded border ${
+                  hostingType === "cloud"
+                    ? "border-gruvbox-orange text-gruvbox-orange"
+                    : "border-slate-700 text-slate-200"
+                }`}
+                onClick={() => {
+                  setHostingType("cloud");
+                  setCreateStep(2);
+                }}
+              >
+                Cloud-hosted • Requires active plan
+              </button>
+            </div>
+          )}
+
+          {createStep === 2 && (
+            <form onSubmit={handleCreate} className="space-y-2">
+              <div className="text-xs text-slate-400 uppercase">Server details</div>
+              <input
+                type="text"
+                value={newServerName}
+                onChange={(e) => setNewServerName(e.target.value)}
+                placeholder="Server name"
+                className="w-full bg-slate-900/70 border border-slate-700 rounded px-3 py-2 text-slate-100"
+              />
+              <div className="flex items-center gap-2">
+                <button type="button" className="text-xs text-slate-400" onClick={() => setCreateStep(1)}>
+                  Back
+                </button>
+                <button type="submit" className="text-sm hover:text-gruvbox-orange">
+                  Create ({hostingType === "cloud" ? "Cloud" : "Self-hosted"})
+                </button>
+              </div>
+              {createError && <div className="text-xs text-red-400">{createError}</div>}
+            </form>
+          )}
+        </div>
       )}
 
       <form onSubmit={handleJoin} className="mb-4 flex gap-2">

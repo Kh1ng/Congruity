@@ -9,6 +9,7 @@ export function useFriends() {
   const { user } = useAuth();
   const [friends, setFriends] = useState([]);
   const [pending, setPending] = useState([]);
+  const [outgoing, setOutgoing] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -35,17 +36,24 @@ export function useFriends() {
 
       const accepted = [];
       const pendingList = [];
+      const outgoingList = [];
       (data || []).forEach((f) => {
-        const friend = f.user_id === user.id ? f.friend : f.user;
+        const isRequester = f.user_id === user.id;
+        const friend = isRequester ? f.friend : f.user;
         if (f.status === "accepted") {
           accepted.push(friend);
         } else if (f.status === "pending") {
-          pendingList.push(friend);
+          if (f.friend_id === user.id) {
+            pendingList.push({ ...friend, friendshipId: f.id });
+          } else {
+            outgoingList.push({ ...friend, friendshipId: f.id });
+          }
         }
       });
 
       setFriends(accepted);
       setPending(pendingList);
+      setOutgoing(outgoingList);
       setError(null);
     } catch (err) {
       console.error("Error fetching friends:", err);
@@ -87,12 +95,29 @@ export function useFriends() {
     [user, fetchFriends]
   );
 
+  const respondToRequest = useCallback(
+    async (friendshipId, status) => {
+      if (!user) throw new Error("Must be logged in");
+
+      const { error } = await supabase
+        .from("friendships")
+        .update({ status })
+        .eq("id", friendshipId);
+
+      if (error) throw error;
+      await fetchFriends();
+    },
+    [user, fetchFriends]
+  );
+
   return {
     friends,
     pending,
+    outgoing,
     loading,
     error,
     addFriendByUsername,
+    respondToRequest,
     refetch: fetchFriends,
   };
 }

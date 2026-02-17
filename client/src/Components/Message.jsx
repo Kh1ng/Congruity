@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useMessages } from "@/hooks";
+import Spinner from "./Spinner";
 
-function Messages({ channelId }) {
+function Messages({ channelId, memberMap = {} }) {
   const { messages, loading, error, sendMessage } = useMessages(channelId);
   const [newMessage, setNewMessage] = useState("");
 
@@ -21,7 +22,11 @@ function Messages({ channelId }) {
   }
 
   if (loading) {
-    return <div className="text-slate-400">Loading messages...</div>;
+    return (
+      <div className="text-slate-400 flex items-center gap-2">
+        <Spinner size={14} /> Loading messages...
+      </div>
+    );
   }
 
   if (error) {
@@ -36,17 +41,24 @@ function Messages({ channelId }) {
           <div className="text-slate-400">No messages yet</div>
         ) : (
           <ul className="space-y-2">
-            {messages.map((message) => (
-              <li key={message.id}>
-                <span className="text-slate-400 mr-2">
-                  {message.profiles?.display_name ||
-                    message.profiles?.username ||
-                    message.profiles?.id ||
-                    message.user_id}
-                </span>
-                <span>{message.content}</span>
-              </li>
-            ))}
+            {messages.map((message) => {
+              const member = memberMap[message.user_id];
+              const nickname = member?.nickname;
+              const profile = member?.profile || message.profiles;
+              const label =
+                nickname ||
+                profile?.display_name ||
+                profile?.username ||
+                profile?.id ||
+                message.user_id;
+
+              return (
+                <li key={message.id}>
+                  <span className="text-slate-400 mr-2">{label}</span>
+                  <span>{message.content}</span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

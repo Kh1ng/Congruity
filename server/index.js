@@ -35,34 +35,41 @@ app.get("/", (req, res) => {
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
+  const emitRoomUsers = (roomId) => {
+    const users = Array.from(rooms.get(roomId) || []);
+    io.to(roomId).emit("room-users", { roomId, users });
+  };
+
   // Join a voice/video room
   socket.on("join-room", (roomId) => {
     socket.join(roomId);
-    
+
     // Track user in room
     if (!rooms.has(roomId)) {
       rooms.set(roomId, new Set());
     }
     rooms.get(roomId).add(socket.id);
-    
+
     // Notify others in the room
     socket.to(roomId).emit("user-joined", { userId: socket.id });
-    
+    emitRoomUsers(roomId);
+
     console.log(`User ${socket.id} joined room ${roomId}`);
   });
 
   // Leave a room
   socket.on("leave-room", (roomId) => {
     socket.leave(roomId);
-    
+
     if (rooms.has(roomId)) {
       rooms.get(roomId).delete(socket.id);
       if (rooms.get(roomId).size === 0) {
         rooms.delete(roomId);
       }
     }
-    
+
     socket.to(roomId).emit("user-left", { userId: socket.id });
+    emitRoomUsers(roomId);
     console.log(`User ${socket.id} left room ${roomId}`);
   });
 
@@ -84,12 +91,13 @@ io.on("connection", (socket) => {
   // Handle disconnect
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
-    
+
     // Remove from all rooms and notify
     rooms.forEach((users, roomId) => {
       if (users.has(socket.id)) {
         users.delete(socket.id);
         socket.to(roomId).emit("user-left", { userId: socket.id });
+        emitRoomUsers(roomId);
         if (users.size === 0) {
           rooms.delete(roomId);
         }

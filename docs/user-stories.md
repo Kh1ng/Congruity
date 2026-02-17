@@ -1,151 +1,46 @@
-# Congruity MVP — User Stories (Draft)
+# Congruity User Stories (Draft)
 
-> Goal: A lightweight, testable MVP focused on core chat + calling workflows.
-> Each story links to its automated test(s).
-
-## Legend
-- **US-###** = User Story ID
-- **Tests** = file(s) that validate the story
-
----
-
-## Auth & Entry
-
-### US-001 — Sign up
-**As a** new user, **I want** to create an account, **so that** I can start using Congruity.
-- **Acceptance Criteria**:
-  - Sign up form allows email, password, username
-  - Submits sign up via Supabase auth
-  - Shows a confirmation message on success
-- **Tests**:
-  - `client/src/Components/Login.test.jsx::sign-up flow`
-
-### US-002 — Login
-**As a** returning user, **I want** to log in, **so that** I can access my servers and chats.
-- **Acceptance Criteria**:
-  - Login form accepts email/password
-  - Submits sign in via Supabase auth
-- **Tests**:
-  - `client/src/Components/Login.test.jsx::login flow`
-
-### US-003 — Toggle login/sign up
-**As a** user, **I want** to switch between login and sign up modes.
-- **Acceptance Criteria**:
-  - Toggle button switches form mode
-  - Username field appears only in sign up
-- **Tests**:
-  - `client/src/Components/Login.test.jsx::toggle`
-
----
+## Auth & Profiles
+- As a user, I can sign up / sign in.
+- As a user, I can set a global username + display name.
+- As a user, I can set a per-server nickname.
 
 ## Servers
-
-### US-010 — View my servers
-**As a** user, **I want** to see servers I belong to, **so that** I can navigate to them.
-- **Acceptance Criteria**:
-  - Server list renders with existing servers
-  - Empty state shown if none
-- **Tests**:
-  - `client/src/Components/ServerList.test.jsx::renders servers`
-  - `client/src/Components/ServerList.test.jsx::empty state`
-
-### US-011 — Create server
-**As a** user, **I want** to create a server, **so that** I can start a community.
-- **Acceptance Criteria**:
-  - Server creation form submits name
-  - New server appears in list
-- **Tests**:
-  - `client/src/Components/ServerList.test.jsx::create server`
-
-### US-012 — Join server
-**As a** user, **I want** to join a server by invite code.
-- **Acceptance Criteria**:
-  - Join form accepts invite code
-  - Join action is invoked
-- **Tests**:
-  - `client/src/Components/ServerList.test.jsx::join server`
-
----
-
-## Messaging
-
-### US-020 — View channel messages
-**As a** user, **I want** to view messages in a channel.
-- **Acceptance Criteria**:
-  - Message list renders
-  - Loading state shown while fetching
-- **Tests**:
-  - `client/src/Components/Message.test.jsx::renders messages`
-
-### US-021 — Send a message
-**As a** user, **I want** to send a message to the channel.
-- **Acceptance Criteria**:
-  - Message input submits
-  - sendMessage is called with content
-- **Tests**:
-  - `client/src/Components/Message.test.jsx::send message`
-
----
-
-## Friends & DMs
-
-### US-025 — Add a friend
-**As a** user, **I want** to add a friend by username.
-- **Acceptance Criteria**:
-  - Add friend form submits username
-  - Request is sent
-- **Tests**:
-  - `client/src/Components/FriendsList.test.jsx::add friend`
-
-### US-026 — View friends & start DM
-**As a** user, **I want** to see my friends and start a DM.
-- **Acceptance Criteria**:
-  - Friends list renders
-  - Message button triggers DM selection
-- **Tests**:
-  - `client/src/Components/FriendsList.test.jsx::renders friends and message button`
-
-### US-027 — Send a DM
-**As a** user, **I want** to send a DM to a friend.
-- **Acceptance Criteria**:
-  - DM input submits
-  - sendMessage is called with content
-- **Tests**:
-  - `client/src/Components/DMChat.test.jsx::send DM`
-
----
+- As a user, I can create a server (self-hosted or cloud).
+- As a user, I can join a server via invite code.
+- As a user, I can leave a server.
+- As an owner/admin, I can delete a server.
 
 ## Channels
+- As a user, I can browse channels in a server.
+- As an admin/moderator, I can create/rename/delete channels.
+- As a user, I can send messages in text channels.
 
-### US-028 — View channels
-**As a** user, **I want** to see channels for a server.
-- **Acceptance Criteria**:
-  - Text/voice/video channels are displayed
-- **Tests**:
-  - `client/src/Components/ChannelList.test.jsx::renders channel groups`
+## Messaging
+- As a user, I can see message history.
+- As a user, I can edit/delete my messages.
+- As a moderator, I can delete messages.
 
----
+## Friends & DMs
+- As a user, I can send/accept/decline friend requests.
+- As a user, I can DM a friend.
+- As a user, I can read my own DMs only.
 
 ## Voice/Video
+- As a user, I can join/leave a voice channel.
+- As a user, I can see who is in the voice channel.
 
-### US-030 — Join a call room
-**As a** user, **I want** to join a voice/video room.
-- **Acceptance Criteria**:
-  - Join button starts WebRTC call
-  - Leave button ends call
-- **Tests**:
-  - `client/src/Components/VideoChat.test.jsx::join/leave`
+## Moderation
+- As a moderator, I can kick/ban members.
+- As a super user, I can do all moderation except reading others' DMs.
 
-### US-031 — Basic media controls
-**As a** user, **I want** to mute/unmute and toggle video.
-- **Acceptance Criteria**:
-  - Mute and Video toggle call handlers
-- **Tests**:
-  - `client/src/Components/VideoChat.test.jsx::controls`
+## UX / Layout / Themes
+- As a user, I can collapse/expand panels.
+- As a user, I can customize theme colors.
+- As a user, I can see loading indicators during fetches.
 
-### US-032 — Screen share
-**As a** user, **I want** to share my screen in a room.
-- **Acceptance Criteria**:
-  - Start/Stop share call handlers
-- **Tests**:
-  - `client/src/Components/VideoChat.test.jsx::screen share`
+## CLI/TUI
+- As a user, I can login from CLI.
+- As a user, I can list servers and channels.
+- As a user, I can send/read messages from CLI.
+- As a user, I can send friend requests and DMs from CLI.

@@ -19,6 +19,7 @@ export function useWebRTC(roomId) {
   const [error, setError] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
+  const [roomUsers, setRoomUsers] = useState([]);
 
   const socketRef = useRef(null);
   const peerConnectionsRef = useRef(new Map());
@@ -46,6 +47,10 @@ export function useWebRTC(roomId) {
     socket.on("user-joined", async ({ userId }) => {
       console.log("User joined:", userId);
       await createPeerConnection(userId, true);
+    });
+
+    socket.on("room-users", ({ users }) => {
+      setRoomUsers(users || []);
     });
 
     socket.on("offer", async ({ offer, from }) => {
@@ -80,6 +85,7 @@ export function useWebRTC(roomId) {
     socket.on("disconnect", () => {
       console.log("Disconnected from signaling server");
       setIsConnected(false);
+      setRoomUsers([]);
     });
 
     socketRef.current = socket;
@@ -333,6 +339,7 @@ export function useWebRTC(roomId) {
     error,
     isMuted,
     isVideoOff,
+    roomUsers,
     startCall,
     endCall,
     toggleMute,

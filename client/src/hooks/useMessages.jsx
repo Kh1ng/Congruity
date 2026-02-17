@@ -27,7 +27,7 @@ export function useMessages(channelId) {
         .from("messages")
         .select(`
           *,
-          profiles:user_id(id, username, display_name, avatar_url)
+          profiles!messages_user_id_fkey(id, username, display_name, avatar_url)
         `)
         .eq("channel_id", channelId)
         .order("created_at", { ascending: true })
@@ -67,7 +67,7 @@ export function useMessages(channelId) {
             .from("messages")
             .select(`
               *,
-              profiles:user_id(id, username, display_name, avatar_url)
+              profiles!messages_user_id_fkey(id, username, display_name, avatar_url)
             `)
             .eq("id", payload.new.id)
             .single();

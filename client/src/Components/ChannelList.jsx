@@ -1,5 +1,6 @@
 import React from "react";
 import { useChannels } from "@/hooks";
+import Spinner from "./Spinner";
 
 function ChannelList({ serverId, selectedChannelId, onSelectChannel }) {
   const { textChannels, voiceChannels, videoChannels, loading, error } =
@@ -9,7 +10,11 @@ function ChannelList({ serverId, selectedChannelId, onSelectChannel }) {
     return <div className="text-slate-400">Select a server to view channels.</div>;
   }
 
-  if (loading) return <div className="text-slate-400">Loading channels...</div>;
+  if (loading) return (
+    <div className="text-slate-400 flex items-center gap-2">
+      <Spinner size={14} /> Loading channels...
+    </div>
+  );
   if (error) return <div className="text-red-500">{error}</div>;
 
   return (

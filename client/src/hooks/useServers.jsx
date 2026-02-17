@@ -52,7 +52,7 @@ export function useServers() {
    * @returns {Promise<Object>} Created server
    */
   const createServer = useCallback(
-    async (name, description = null) => {
+    async (name, description = null, hostingType = "self_hosted") => {
       if (!user) throw new Error("Must be logged in to create a server");
 
       const { data: server, error: serverError } = await supabase
@@ -61,6 +61,7 @@ export function useServers() {
           name,
           description,
           owner_id: user.id,
+          hosting_type: hostingType,
         })
         .select()
         .single();
@@ -100,14 +101,15 @@ export function useServers() {
     async (inviteCode) => {
       if (!user) throw new Error("Must be logged in to join a server");
 
-      // Find server by invite code
-      const { data: server, error: findError } = await supabase
-        .from("servers")
-        .select()
-        .eq("invite_code", inviteCode)
-        .single();
+      // Find server by invite code via RPC
+      const { data: serverList, error: findError } = await supabase
+        .rpc("lookup_server_by_invite", { code: inviteCode });
 
-      if (findError) throw new Error("Invalid invite code");
+      if (findError || !serverList || serverList.length === 0) {
+        throw new Error("Invalid invite code");
+      }
+
+      const server = serverList[0];
 
       // Check if already a member
       const { data: existing } = await supabase

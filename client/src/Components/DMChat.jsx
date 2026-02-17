@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useDirectMessages } from "@/hooks";
+import Spinner from "./Spinner";
 
 function DMChat({ friend }) {
   const { messages, loading, error, sendMessage } = useDirectMessages(friend?.id);
@@ -25,7 +26,11 @@ function DMChat({ friend }) {
         <h2 className="text-lg font-bold">DM: {friend.display_name || friend.username}</h2>
       </div>
 
-      {loading && <div className="text-slate-400">Loading messages...</div>}
+      {loading && (
+        <div className="text-slate-400 flex items-center gap-2">
+          <Spinner size={14} /> Loading messages...
+        </div>
+      )}
       {error && <div className="text-red-500">{error}</div>}
 
       <div className="border border-slate-700 rounded p-2 h-56 overflow-y-auto mb-2">

@@ -4,6 +4,7 @@ import { render, screen, fireEvent, act } from "@testing-library/react";
 import FriendsList from "./FriendsList";
 
 const addFriendMock = vi.fn();
+const respondMock = vi.fn();
 
 vi.mock("@/hooks", () => ({
   useFriends: () => ({
@@ -11,10 +12,12 @@ vi.mock("@/hooks", () => ({
       { id: "f1", username: "alice", display_name: "Alice" },
       { id: "f2", username: "bob", display_name: "Bob" },
     ],
-    pending: [],
+    pending: [{ id: "p1", username: "eve", display_name: "Eve", friendshipId: "fr1" }],
+    outgoing: [],
     loading: false,
     error: null,
     addFriendByUsername: addFriendMock,
+    respondToRequest: respondMock,
   }),
 }));
 
@@ -41,5 +44,12 @@ describe("FriendsList", () => {
     });
 
     expect(addFriendMock).toHaveBeenCalledWith("charlie");
+  });
+
+  it("responds to friend request", () => {
+    render(<FriendsList />);
+
+    fireEvent.click(screen.getByRole("button", { name: /accept/i }));
+    expect(respondMock).toHaveBeenCalledWith("fr1", "accepted");
   });
 });

@@ -5,3 +5,4 @@ export { useMessages } from "./useMessages";
 export { useWebRTC } from "./useWebRTC";
 export { useFriends } from "./useFriends";
 export { useDirectMessages } from "./useDirectMessages";
+export { useServerMembers } from "./useServerMembers";
