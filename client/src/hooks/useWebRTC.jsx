@@ -43,6 +43,7 @@ export function useWebRTC(roomId) {
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [roomUsers, setRoomUsers] = useState([]);
   const [localSocketId, setLocalSocketId] = useState(null);
+  const [audioLevels, setAudioLevels] = useState({});
 
   const socketRef = useRef(null);
   const localSocketIdRef = useRef(null);
@@ -552,6 +553,75 @@ export function useWebRTC(roomId) {
     playCue("leave");
   }, [roomId, playCue]);
 
+  // Audio level meters
+  useEffect(() => {
+    let rafId;
+    let isActive = true;
+
+    const setupAnalyser = async (stream, key) => {
+      const context = await ensureAudioContext();
+      if (!context || !stream) return null;
+      const source = context.createMediaStreamSource(stream);
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
+      return { analyser, source };
+    };
+
+    const start = async () => {
+      const localAnalyser = localStreamRef.current
+        ? await setupAnalyser(localStreamRef.current, "local")
+        : null;
+      const remoteAnalysers = new Map();
+
+      for (const [id, stream] of remoteStreams.entries()) {
+        const analyser = await setupAnalyser(stream, id);
+        if (analyser) remoteAnalysers.set(id, analyser);
+      }
+
+      const tick = () => {
+        if (!isActive) return;
+        const nextLevels = {};
+
+        const readLevel = (analyser) => {
+          const buffer = new Uint8Array(analyser.frequencyBinCount);
+          analyser.getByteTimeDomainData(buffer);
+          let sum = 0;
+          for (let i = 0; i < buffer.length; i += 1) {
+            const v = (buffer[i] - 128) / 128;
+            sum += v * v;
+          }
+          const rms = Math.sqrt(sum / buffer.length);
+          return Math.min(1, rms * 3.5);
+        };
+
+        if (localAnalyser?.analyser) {
+          nextLevels.local = readLevel(localAnalyser.analyser);
+        }
+
+        remoteAnalysers.forEach((entry, id) => {
+          nextLevels[id] = readLevel(entry.analyser);
+        });
+
+        setAudioLevels(nextLevels);
+        rafId = requestAnimationFrame(tick);
+      };
+
+      tick();
+    };
+
+    if (isConnected) {
+      start();
+    } else {
+      setAudioLevels({});
+    }
+
+    return () => {
+      isActive = false;
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, [isConnected, remoteStreams, ensureAudioContext]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -569,6 +639,7 @@ export function useWebRTC(roomId) {
     isScreenSharing,
     roomUsers,
     localSocketId,
+    audioLevels,
     startCall,
     endCall,
     toggleMute,
