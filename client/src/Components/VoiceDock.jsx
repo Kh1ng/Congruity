@@ -64,11 +64,18 @@ function VoiceDock({ channel, voice }) {
       </div>
       {roomUsers?.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-400">
-          {roomUsers.map((id) => (
-            <span key={id} className="px-2 py-1 bg-slate-900/60 rounded">
-              {id.slice(0, 6)}
-            </span>
-          ))}
+          {roomUsers.map((entry, index) => {
+            const displayId = entry?.userId || entry?.socketId || entry;
+            const label = typeof displayId === "string" ? displayId.slice(0, 6) : "Unknown";
+            return (
+              <span
+                key={entry?.socketId || displayId || index}
+                className="px-2 py-1 bg-slate-900/60 rounded"
+              >
+                {label}
+              </span>
+            );
+          })}
         </div>
       )}
     </div>
