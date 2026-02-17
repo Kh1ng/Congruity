@@ -53,6 +53,20 @@
   --color-success: #16a34a;
 }
 
+:root[data-theme="tokyo-night"] {
+  --color-bg: #1a1b26;
+  --color-surface: #24283b;
+  --color-surface-alt: #2f3549;
+  --color-text: #c0caf5;
+  --color-text-muted: #9aa5ce;
+  --color-border: #414868;
+  --color-accent: #7aa2f7;
+  --color-accent-contrast: #1a1b26;
+  --color-accent-2: #bb9af7;
+  --color-danger: #f7768e;
+  --color-success: #9ece6a;
+}
+
 body {
   background-color: var(--color-bg);
   color: var(--color-text);

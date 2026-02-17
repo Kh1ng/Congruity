@@ -66,8 +66,6 @@ export function useWebRTC(roomId) {
   const remoteStreamsRef = useRef(new Map());
   const audioContextRef = useRef(null);
   const audioEnabledRef = useRef(false);
-  const meterActiveRef = useRef(false);
-  const isConnectedRef = useRef(false);
   const endCallRef = useRef(null);
 
   const ensureAudioContext = useCallback(async () => {

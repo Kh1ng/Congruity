@@ -1,11 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { LayoutGrid } from "lucide-react";
+import { LayoutGrid, Settings } from "lucide-react";
 import { useWebRTC, useServerMembers } from "@/hooks";
 import ServerList from "./ServerList";
 import ChannelList from "./ChannelList";
 import Messages from "./Message";
-import VoiceDock from "./VoiceDock";
-import ServerProfilePanel from "./ServerProfilePanel";
+import VoicePanel from "./VoicePanel";
 import DockStack from "./DockStack";
 import SettingsView from "./SettingsView";
 import AppShell from "./AppShell";
@@ -19,7 +18,6 @@ function Home() {
   const [collapseChannels, setCollapseChannels] = useState(false);
   const [collapseSocial, setCollapseSocial] = useState(true);
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
-  const disableVoicePanel = true;
 
   const resetLayout = () => {
     localStorage.removeItem("layoutPrefs");
@@ -58,14 +56,16 @@ function Home() {
 
   const renderChannelPanel = useMemo(() => {
     if (!selectedChannel) return <Messages channelId={null} />;
-        if (selectedChannel.type === "voice" || selectedChannel.type === "video") {
+    if (selectedChannel.type === "voice" || selectedChannel.type === "video") {
       return (
-        <div className="text-slate-400">Voice panel temporarily disabled for render-loop isolation.</div>
+        <VoicePanel
+          channel={selectedChannel}
+          voice={voiceSession}
+          memberMap={memberMap}
+        />
       );
     }
-    return (
-      <Messages channelId={selectedChannel.id} memberMap={memberMap} />
-    );
+    return <Messages channelId={selectedChannel.id} memberMap={memberMap} />;
   }, [selectedChannel, voiceSession, memberMap]);
 
   const leftDockWidth =
@@ -128,7 +128,7 @@ function Home() {
             setSelectedChannel(channel);
             if (channel.type === "voice" || channel.type === "video") {
               setActiveVoiceChannel(channel);
-              if (!disableVoicePanel && !voiceSession.isConnected) {
+              if (!voiceSession.isConnected) {
                 voiceSession.startCall({ video: channel.type === "video", audio: true });
               }
             }
@@ -150,16 +150,10 @@ function Home() {
         <SettingsView
           server={selectedServer}
           serverId={selectedServer?.id}
+          voice={voiceSession}
+          voiceChannel={activeVoiceChannel}
+          memberMap={memberMap}
         />
-      ),
-    });
-
-    registerPanel("server-profile", {
-      dock: "right",
-      title: "Server",
-      order: 4,
-      content: (
-        <ServerProfilePanel server={selectedServer} memberMap={memberMap} />
       ),
     });
 
@@ -177,7 +171,14 @@ function Home() {
             {selectedChannel ? `#${selectedChannel.name}` : "Select a channel"}
           </div>
         </div>
-        <div className="relative text-xs text-slate-400">
+        <div className="relative flex items-center gap-3 text-xs text-slate-400">
+          <button
+            onClick={() => setCollapseSocial(false)}
+            className="inline-flex items-center gap-1.5 hover:text-gruvbox-orange"
+          >
+            <Settings size={14} />
+            Settings
+          </button>
           <button
             onClick={() => setShowLayoutMenu((v) => !v)}
             className="inline-flex items-center gap-1.5 hover:text-gruvbox-orange"
@@ -203,7 +204,7 @@ function Home() {
                 onClick={() => setCollapseSocial((v) => !v)}
                 className="mt-1 block w-full text-left text-xs text-slate-300 hover:text-gruvbox-orange"
               >
-                {collapseSocial ? "Show Social" : "Hide Social"}
+                {collapseSocial ? "Show Settings" : "Hide Settings"}
               </button>
               <button
                 onClick={resetLayout}
@@ -233,7 +234,7 @@ function Home() {
             rightDock: (
               <aside className="bg-slate-950/40 border border-slate-800 rounded p-2 min-h-0 h-full">
                 {collapseSocial ? (
-                  <div className="text-xs text-slate-500">Social</div>
+                  <div className="text-xs text-slate-500">Settings</div>
                 ) : (
                   <DockStack dockId="right" panels={rightPanels} />
                 )}
@@ -242,8 +243,6 @@ function Home() {
           }}
         />
       </div>
-
-      <VoiceDock channel={activeVoiceChannel} voice={voiceSession} memberMap={memberMap} />
     </div>
   );
 }

@@ -7,6 +7,7 @@ const THEME_OPTIONS = [
   { value: "dark", label: "Dark" },
   { value: "light", label: "Light" },
   { value: "gruvbox", label: "Gruvbox" },
+  { value: "tokyo-night", label: "Tokyo Night" },
 ];
 
 const ThemeContext = createContext({

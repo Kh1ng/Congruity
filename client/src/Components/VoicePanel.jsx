@@ -2,68 +2,41 @@ import React, { useEffect, useMemo, useRef } from "react";
 import { Mic, MicOff, MonitorUp, Phone, PhoneOff, Video, VideoOff } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
-function getInitials(name) {
-  if (!name) return "?";
-  const parts = name.trim().split(/\s+/).slice(0, 2);
-  return parts.map((part) => part[0]?.toUpperCase() || "").join("") || "?";
-}
-
-function ParticipantMedia({ stream, isLocal, fit = "cover" }) {
+function ParticipantMedia({ stream, isLocal }) {
   const videoRef = useRef(null);
   const audioRef = useRef(null);
 
-  const hasLiveVideo =
-    stream?.getVideoTracks().some((track) => track.readyState === "live" && track.enabled) ||
-    false;
-  const hasLiveAudio =
-    stream?.getAudioTracks().some((track) => track.readyState === "live" && track.enabled) ||
-    false;
-
   useEffect(() => {
-    if (videoRef.current) {
-      if (stream && hasLiveVideo) {
-        videoRef.current.srcObject = stream;
-      } else {
-        videoRef.current.srcObject = null;
-      }
+    if (!videoRef.current || !audioRef.current) return;
+    if (stream) {
+      videoRef.current.srcObject = stream;
+      audioRef.current.srcObject = stream;
     }
-    if (audioRef.current) {
-      if (stream && hasLiveAudio) {
-        audioRef.current.srcObject = stream;
-      } else {
-        audioRef.current.srcObject = null;
-      }
-    }
-  }, [stream, hasLiveVideo, hasLiveAudio]);
+  }, [stream]);
+
+  if (!stream) return null;
+
+  const hasVideo = stream.getVideoTracks().some((track) => track.readyState === "live");
+  const hasAudio = stream.getAudioTracks().some((track) => track.readyState === "live");
 
   return (
     <>
-      {stream && hasLiveVideo && (
+      {hasVideo && (
         <video
           ref={videoRef}
           autoPlay
           playsInline
           muted={isLocal}
-          className={`h-full w-full ${fit === "contain" ? "object-contain" : "object-cover"} ${
-            fit === "contain" ? "rounded-lg" : "rounded-full"
-          }`}
+          className="h-full w-full object-contain"
         />
       )}
-      {stream && hasLiveAudio && <audio ref={audioRef} autoPlay muted={isLocal} />}
+      {hasAudio && <audio ref={audioRef} autoPlay muted={isLocal} />}
     </>
   );
 }
 
 function VoicePanel({ channel, voice, memberMap }) {
   const { user } = useAuth();
-  const [autoVideo, setAutoVideo] = React.useState(() => {
-    const raw = localStorage.getItem("voice:autoVideo");
-    return raw ? raw === "true" : true;
-  });
-  const [hiddenStreams, setHiddenStreams] = React.useState(() => new Set());
-  const [focusedStreamId, setFocusedStreamId] = React.useState(null);
-  const [showCamSettings, setShowCamSettings] = React.useState(false);
-  const [showShareSettings, setShowShareSettings] = React.useState(false);
 
   if (!channel) {
     return <div className="text-slate-400">Select a voice channel to join.</div>;
@@ -84,18 +57,7 @@ function VoicePanel({ channel, voice, memberMap }) {
     startScreenShare,
     stopScreenShare,
     roomUsers,
-    localSocketId,
-    audioLevels,
-    audioWaveforms,
-    videoConstraints,
-    screenConstraints,
-    setVideoConstraints,
-    setScreenConstraints,
-    stageStreamIds,
-    setStageStreamIds,
   } = voice;
-
-  void localStream;
 
   const remoteStreamMap = useMemo(() => new Map(remoteStreams || []), [remoteStreams]);
 
@@ -104,72 +66,41 @@ function VoicePanel({ channel, voice, memberMap }) {
     const localProfile = memberMap?.[user?.id]?.profile || {};
     const localName =
       localProfile.display_name || localProfile.username || user?.email || "You";
+
     entries.push({
       id: "local",
       name: localName,
-      avatar: localProfile.avatar_url || user?.user_metadata?.avatar_url,
+      initials: localName.slice(0, 2).toUpperCase(),
       isLocal: true,
-      isMuted,
       stream: localStream,
     });
 
-    (roomUsers || [])
-      .filter((userEntry) => (userEntry.socketId || userEntry) !== localSocketId)
-      .forEach((userEntry) => {
-        const socketId = userEntry.socketId || userEntry;
-        const userId = userEntry.userId;
-        const profile = userId ? memberMap?.[userId]?.profile || {} : {};
-        const name =
-          profile.display_name || profile.username || userId || socketId.slice(0, 6);
-        entries.push({
-          id: socketId,
-          name,
-          avatar: profile.avatar_url,
-          isLocal: false,
-          stream: remoteStreamMap.get(socketId),
-        });
+    (roomUsers || []).forEach((entry) => {
+      const socketId = entry?.socketId || entry;
+      const userId = entry?.userId;
+      const profile = userId ? memberMap?.[userId]?.profile || {} : {};
+      const name = profile.display_name || profile.username || userId || socketId;
+      entries.push({
+        id: socketId,
+        name,
+        initials: String(name || "?").slice(0, 2).toUpperCase(),
+        isLocal: false,
+        stream: remoteStreamMap.get(socketId),
       });
+    });
 
     return entries;
-  }, [memberMap, user, roomUsers, localSocketId, isMuted, remoteStreamMap, localStream]);
+  }, [roomUsers, memberMap, user, remoteStreamMap, localStream]);
 
   const videoParticipants = useMemo(
     () =>
-      participants.filter(
-        (participant) =>
-          participant.stream &&
-          participant.stream.getVideoTracks().some((track) => track.readyState === "live" && track.enabled)
+      participants.filter((participant) =>
+        participant.stream?.getVideoTracks().some((track) => track.readyState === "live")
       ),
     [participants]
   );
 
-  const visibleVideoParticipants = useMemo(
-    () => videoParticipants.filter((participant) => !hiddenStreams.has(participant.id)),
-    [videoParticipants, hiddenStreams]
-  );
-
-  const hasActiveVideo = visibleVideoParticipants.length > 0;
-  const showVideoStage = autoVideo && hasActiveVideo;
-
-  const defaultStageIds = useMemo(
-    () =>
-      visibleVideoParticipants
-        .filter((participant) => !participant.isLocal)
-        .map((participant) => participant.id),
-    [visibleVideoParticipants]
-  );
-
-  const effectiveStageIds = stageStreamIds.length ? stageStreamIds : defaultStageIds;
-
-  const safeFocusedId =
-    focusedStreamId &&
-    visibleVideoParticipants.find((participant) => participant.id === focusedStreamId)
-      ? focusedStreamId
-      : null;
-
-  const stageParticipants = safeFocusedId
-    ? visibleVideoParticipants.filter((participant) => participant.id === safeFocusedId)
-    : visibleVideoParticipants.filter((participant) => effectiveStageIds.includes(participant.id));
+  const showVideoStage = videoParticipants.length > 0;
 
   return (
     <div className="flex flex-col h-full">
@@ -178,271 +109,46 @@ function VoicePanel({ channel, voice, memberMap }) {
           <div className="text-xs uppercase tracking-wide text-slate-400">Voice channel</div>
           <div className="text-base font-semibold">#{channel.name}</div>
         </div>
-        <div className="flex items-center gap-3 text-xs text-slate-400">
-          <button
-            onClick={() => setAutoVideo((prev) => !prev)}
-            className="text-xs text-slate-400 hover:text-gruvbox-orange"
-          >
-            Auto video: {autoVideo ? "On" : "Off"}
-          </button>
-          {focusedStreamId && (
-            <button
-              onClick={() => setFocusedStreamId(null)}
-              className="text-xs text-slate-400 hover:text-gruvbox-orange"
-            >
-              Exit Focus
-            </button>
-          )}
-        </div>
       </div>
-      <div className="flex flex-wrap gap-3 text-xs text-slate-400 mb-3">
-        <label className="flex items-center gap-2">
-          Cam
-          <select
-            value={`${videoConstraints.width}x${videoConstraints.height}`}
-            onChange={(e) => {
-              const [width, height] = e.target.value.split("x").map(Number);
-              setVideoConstraints((prev) => ({ ...prev, width, height }));
-            }}
-            className="bg-slate-900/60 border border-slate-800 rounded px-2 py-1"
-          >
-            <option value="640x360">640x360</option>
-            <option value="1280x720">1280x720</option>
-            <option value="1920x1080">1920x1080</option>
-          </select>
-        </label>
-        <label className="flex items-center gap-2">
-          Cam FPS
-          <select
-            value={videoConstraints.frameRate}
-            onChange={(e) =>
-              setVideoConstraints((prev) => ({ ...prev, frameRate: Number(e.target.value) }))
-            }
-            className="bg-slate-900/60 border border-slate-800 rounded px-2 py-1"
-          >
-            <option value={24}>24</option>
-            <option value={30}>30</option>
-            <option value={60}>60</option>
-          </select>
-        </label>
-        <label className="flex items-center gap-2">
-          Share
-          <select
-            value={`${screenConstraints.width}x${screenConstraints.height}`}
-            onChange={(e) => {
-              const [width, height] = e.target.value.split("x").map(Number);
-              setScreenConstraints((prev) => ({ ...prev, width, height }));
-            }}
-            className="bg-slate-900/60 border border-slate-800 rounded px-2 py-1"
-          >
-            <option value="1280x720">1280x720</option>
-            <option value="1920x1080">1920x1080</option>
-            <option value="2560x1440">2560x1440</option>
-          </select>
-        </label>
-        <label className="flex items-center gap-2">
-          Share FPS
-          <select
-            value={screenConstraints.frameRate}
-            onChange={(e) =>
-              setScreenConstraints((prev) => ({ ...prev, frameRate: Number(e.target.value) }))
-            }
-            className="bg-slate-900/60 border border-slate-800 rounded px-2 py-1"
-          >
-            <option value={15}>15</option>
-            <option value={30}>30</option>
-            <option value={60}>60</option>
-          </select>
-        </label>
-      </div>
+
       {error && <div className="text-red-500 mb-2">{error}</div>}
 
-      {showVideoStage && (
-        <div
-          className={`grid gap-3 mb-4 ${
-            focusedStreamId
-              ? "grid-cols-1"
-              : visibleVideoParticipants.length > 1
-                ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
-                : "grid-cols-1"
-          }`}
-        >
-          {stageParticipants.map((participant) => {
-            const meterKey = participant.isLocal ? "local" : participant.id;
-            const level = audioLevels?.[meterKey] || 0;
-            const waveform = audioWaveforms?.[meterKey] || [];
-            const isSpeaking = level > 0.01;
-            const points = waveform.length
-              ? waveform
-                  .map((value, index) => {
-                    const x = (index / (waveform.length - 1)) * 80;
-                    const y = 20 - value * 14;
-                    return `${x.toFixed(1)},${y.toFixed(1)}`;
-                  })
-                  .join(" ")
-              : "0,20 80,20";
-
-            return (
-              <div
-                key={`video-${participant.id}`}
-                className="relative rounded-xl border border-slate-800 bg-slate-950/40 p-3"
-              >
-                <div
-                  className={`relative flex h-56 w-full items-center justify-center overflow-hidden rounded-lg border-2 ${
-                    isSpeaking ? "border-gruvbox-orange" : "border-slate-700"
-                  } bg-slate-900 text-lg font-semibold text-slate-100 cursor-pointer`}
-                  onClick={() =>
-                    setFocusedStreamId((prev) => (prev === participant.id ? null : participant.id))
-                  }
-                >
-                  <ParticipantMedia stream={participant.stream} isLocal={participant.isLocal} fit="contain" />
-                  <button
-                    className="absolute top-2 right-2 text-xs rounded border border-slate-700 bg-slate-950/70 px-2 py-1 hover:text-gruvbox-orange"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setHiddenStreams((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(participant.id)) {
-                          next.delete(participant.id);
-                        } else {
-                          next.add(participant.id);
-                        }
-                        return next;
-                      });
-                    }}
-                  >
-                    Hide
-                  </button>
-                </div>
-                <div className="mt-2 flex items-center justify-between">
-                  <div className="text-sm font-medium text-slate-100">
-                    {participant.isLocal ? "You" : participant.name}
-                  </div>
-                  <div className="text-xs text-slate-400">
-                    {isSpeaking ? "Speaking" : "Idle"}
-                  </div>
-                </div>
-                <div className="mt-2">
-                  <svg viewBox="0 0 80 40" className="h-6 w-full">
-                    <polyline
-                      fill="none"
-                      stroke={isSpeaking ? "#d79921" : "#64748b"}
-                      strokeWidth="2"
-                      points={points}
-                    />
-                  </svg>
-                </div>
+      {showVideoStage ? (
+        <div className="grid gap-3 mb-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+          {videoParticipants.map((participant) => (
+            <div
+              key={participant.id}
+              className="relative rounded-xl border border-slate-800 bg-slate-950/40 p-3"
+            >
+              <div className="relative flex h-56 w-full items-center justify-center overflow-hidden rounded-lg border border-slate-700 bg-slate-900">
+                <ParticipantMedia stream={participant.stream} isLocal={participant.isLocal} />
               </div>
-            );
-          })}
+              <div className="mt-2 text-sm font-medium text-slate-100">
+                {participant.isLocal ? "You" : participant.name}
+              </div>
+            </div>
+          ))}
         </div>
-      )}
-
-      {showCamSettings && (
-        <div className="mb-3 rounded border border-slate-800 bg-slate-950/80 p-3 text-xs text-slate-300">
-          <div className="mb-2 font-semibold text-slate-200">Camera settings</div>
-          <div className="flex flex-wrap gap-3">
-            <label className="flex items-center gap-2">
-              Cam
-              <select
-                value={String(videoConstraints.width) + 'x' + String(videoConstraints.height)}
-                onChange={(e) => {
-                  const [width, height] = e.target.value.split('x').map(Number);
-                  setVideoConstraints((prev) => ({ ...prev, width, height }));
-                }}
-                className="bg-slate-900/60 border border-slate-800 rounded px-2 py-1"
-              >
-                <option value="640x360">640x360</option>
-                <option value="1280x720">1280x720</option>
-                <option value="1920x1080">1920x1080</option>
-              </select>
-            </label>
-            <label className="flex items-center gap-2">
-              Cam FPS
-              <select
-                value={videoConstraints.frameRate}
-                onChange={(e) =>
-                  setVideoConstraints((prev) => ({ ...prev, frameRate: Number(e.target.value) }))
-                }
-                className="bg-slate-900/60 border border-slate-800 rounded px-2 py-1"
-              >
-                <option value={24}>24</option>
-                <option value={30}>30</option>
-                <option value={60}>60</option>
-              </select>
-            </label>
-          </div>
-          <div className="mt-3 flex gap-2">
-            <button
-              className="rounded border border-slate-700 px-3 py-1 hover:text-gruvbox-orange"
-              onClick={() => { setShowCamSettings(false); toggleVideo(); }}
+      ) : (
+        <div className="grid gap-2 mb-4 sm:grid-cols-2 lg:grid-cols-3">
+          {participants.map((participant) => (
+            <div
+              key={participant.id}
+              className="flex items-center gap-3 rounded border border-slate-800 bg-slate-950/40 px-3 py-2"
             >
-              Start Camera
-            </button>
-            <button
-              className="rounded border border-slate-700 px-3 py-1 hover:text-gruvbox-orange"
-              onClick={() => setShowCamSettings(false)}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {showShareSettings && (
-        <div className="mb-3 rounded border border-slate-800 bg-slate-950/80 p-3 text-xs text-slate-300">
-          <div className="mb-2 font-semibold text-slate-200">Screen share settings</div>
-          <div className="flex flex-wrap gap-3">
-            <label className="flex items-center gap-2">
-              Share
-              <select
-                value={String(screenConstraints.width) + 'x' + String(screenConstraints.height)}
-                onChange={(e) => {
-                  const [width, height] = e.target.value.split('x').map(Number);
-                  setScreenConstraints((prev) => ({ ...prev, width, height }));
-                }}
-                className="bg-slate-900/60 border border-slate-800 rounded px-2 py-1"
-              >
-                <option value="1280x720">1280x720</option>
-                <option value="1920x1080">1920x1080</option>
-                <option value="2560x1440">2560x1440</option>
-              </select>
-            </label>
-            <label className="flex items-center gap-2">
-              Share FPS
-              <select
-                value={screenConstraints.frameRate}
-                onChange={(e) =>
-                  setScreenConstraints((prev) => ({ ...prev, frameRate: Number(e.target.value) }))
-                }
-                className="bg-slate-900/60 border border-slate-800 rounded px-2 py-1"
-              >
-                <option value={15}>15</option>
-                <option value={30}>30</option>
-                <option value={60}>60</option>
-              </select>
-            </label>
-          </div>
-          <div className="mt-3 flex gap-2">
-            <button
-              className="rounded border border-slate-700 px-3 py-1 hover:text-gruvbox-orange"
-              onClick={() => { setShowShareSettings(false); startScreenShare(); }}
-            >
-              Start Share
-            </button>
-            <button
-              className="rounded border border-slate-700 px-3 py-1 hover:text-gruvbox-orange"
-              onClick={() => setShowShareSettings(false)}
-            >
-              Cancel
-            </button>
-          </div>
+              <div className="h-10 w-10 rounded-full bg-slate-900/80 border border-slate-700 flex items-center justify-center text-xs font-semibold">
+                {participant.initials}
+              </div>
+              <div className="text-sm text-slate-100">{participant.name}</div>
+            </div>
+          ))}
         </div>
       )}
 
       <div className="flex items-center gap-2 flex-wrap">
         {!isConnected ? (
           <button
+            type="button"
             onClick={() => startCall({ video: false, audio: true })}
             className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium hover:text-gruvbox-orange"
           >
@@ -451,6 +157,7 @@ function VoicePanel({ channel, voice, memberMap }) {
           </button>
         ) : (
           <button
+            type="button"
             onClick={endCall}
             className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium hover:text-gruvbox-orange"
           >
@@ -459,6 +166,7 @@ function VoicePanel({ channel, voice, memberMap }) {
           </button>
         )}
         <button
+          type="button"
           onClick={toggleMute}
           className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium hover:text-gruvbox-orange"
           disabled={!isConnected}
@@ -467,7 +175,8 @@ function VoicePanel({ channel, voice, memberMap }) {
           {isMuted ? "Unmute" : "Mute"}
         </button>
         <button
-          onClick={() => (isVideoOff ? setShowCamSettings(true) : toggleVideo())}
+          type="button"
+          onClick={toggleVideo}
           className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium hover:text-gruvbox-orange"
           disabled={!isConnected}
         >
@@ -475,7 +184,8 @@ function VoicePanel({ channel, voice, memberMap }) {
           {isVideoOff ? "Camera On" : "Camera Off"}
         </button>
         <button
-          onClick={() => (isScreenSharing ? stopScreenShare() : setShowShareSettings(true))}
+          type="button"
+          onClick={isScreenSharing ? stopScreenShare : startScreenShare}
           className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium hover:text-gruvbox-orange"
           disabled={!isConnected}
         >

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import AccountSettings from "./AccountSettings";
+import VoiceDock from "./VoiceDock";
 
 const DEFAULT_LAYOUT = {
   collapseServers: false,
@@ -33,7 +34,7 @@ const PRESETS = {
   },
 };
 
-function SettingsView({ server, serverId }) {
+function SettingsView({ server, serverId, voice, voiceChannel, memberMap }) {
   const [layoutPrefs, setLayoutPrefs] = useState(DEFAULT_LAYOUT);
 
   useEffect(() => {
@@ -76,6 +77,25 @@ function SettingsView({ server, serverId }) {
           Update your profile details and appearance presets.
         </p>
         <AccountSettings serverId={serverId} />
+      </section>
+
+      <section className="rounded border border-slate-800 bg-slate-950/40 p-4">
+        <h3 className="text-sm font-semibold text-slate-300">Voice & Video</h3>
+        <p className="mt-1 text-xs text-slate-500">
+          Quick controls for your active voice channel.
+        </p>
+        {voiceChannel ? (
+          <div className="mt-3">
+            <VoiceDock
+              embedded
+              channel={voiceChannel}
+              voice={voice}
+              memberMap={memberMap}
+            />
+          </div>
+        ) : (
+          <div className="mt-3 text-xs text-slate-400">Join a voice channel to see controls.</div>
+        )}
       </section>
 
       <section className="rounded border border-slate-800 bg-slate-950/40 p-4">
