@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useWebRTC, useServerMembers } from "@/hooks";
@@ -22,11 +22,32 @@ function Home() {
   const [activeVideoChannel, setActiveVideoChannel] = useState(null);
   const [collapseServers, setCollapseServers] = useState(false);
   const [collapseChannels, setCollapseChannels] = useState(false);
-  const [collapseSocial, setCollapseSocial] = useState(false);
+  const [collapseSocial, setCollapseSocial] = useState(true);
 
   const voiceSession = useWebRTC(activeVoiceChannel?.id);
   const videoSession = useWebRTC(activeVideoChannel?.id);
   const { memberMap } = useServerMembers(selectedServer?.id);
+
+  useEffect(() => {
+    const raw = localStorage.getItem("layoutPrefs");
+    if (raw) {
+      try {
+        const prefs = JSON.parse(raw);
+        setCollapseServers(!!prefs.collapseServers);
+        setCollapseChannels(!!prefs.collapseChannels);
+        setCollapseSocial(!!prefs.collapseSocial);
+      } catch {
+        // ignore
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "layoutPrefs",
+      JSON.stringify({ collapseServers, collapseChannels, collapseSocial })
+    );
+  }, [collapseServers, collapseChannels, collapseSocial]);
 
   const renderChannelPanel = useMemo(() => {
     if (!selectedChannel) return <Messages channelId={null} />;
@@ -50,15 +71,14 @@ function Home() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4 text-sm text-slate-400">
-          <Link to="/" className="hover:text-gruvbox-orange">
-            Soon(tm)
-          </Link>
-          <span>•</span>
-          <Link to="/VideoChat" className="hover:text-gruvbox-orange">
-            Video Chat
-          </Link>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="text-lg font-semibold text-slate-100">
+            {selectedServer?.name || "Home"}
+          </div>
+          <div className="text-sm text-slate-400">
+            {selectedChannel ? `#${selectedChannel.name}` : "Select a channel"}
+          </div>
         </div>
         <div className="flex items-center gap-2 text-xs text-slate-400">
           <button onClick={() => setCollapseServers((v) => !v)} className="hover:text-gruvbox-orange">
@@ -76,7 +96,7 @@ function Home() {
         </div>
       </div>
 
-      <div className="grid gap-4 h-[calc(100vh-240px)]" style={{ gridTemplateColumns }}>
+      <div className="grid gap-3 h-[calc(100vh-200px)]" style={{ gridTemplateColumns }}>
         <aside className="bg-slate-950/40 border border-slate-800 rounded p-3 overflow-y-auto">
           {!collapseServers ? (
             <ServerList
@@ -88,6 +108,11 @@ function Home() {
           ) : (
             <div className="text-xs text-slate-500">Servers</div>
           )}
+          <div className="mt-3 text-xs text-slate-500">
+            <Link to="/VideoChat" className="hover:text-gruvbox-orange">
+              Video Chat
+            </Link>
+          </div>
         </aside>
 
         <aside className="bg-slate-950/40 border border-slate-800 rounded p-3 overflow-y-auto">
