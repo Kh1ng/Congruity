@@ -113,7 +113,7 @@ function Home() {
       title: "Channels",
       order: 2,
       content: collapseChannels ? (
-        <div className="text-xs text-slate-500">Channels hidden</div>
+        <div className="text-xs text-theme-muted">Channels hidden</div>
       ) : (
         <ChannelList
           serverId={selectedServer?.id}
@@ -150,7 +150,7 @@ function Home() {
           memberMap={memberMap}
         />
       ) : (
-        <div className="text-xs text-slate-500">Join a voice channel.</div>
+        <div className="text-xs text-theme-muted">Join a voice channel.</div>
       ),
     });
 
@@ -200,18 +200,18 @@ function Home() {
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
-          <div className="text-lg font-semibold text-slate-100">
+          <div className="text-lg font-semibold text-theme">
             {selectedServer?.name || "Home"}
           </div>
-          <div className="text-sm text-slate-400">
+          <div className="text-sm text-theme-muted">
             {selectedChannel ? `#${selectedChannel.name}` : "Select a channel"}
           </div>
         </div>
-        <div className="flex items-center gap-3 text-xs text-slate-400">
+        <div className="flex items-center gap-3 text-xs text-theme-muted">
           <button
             type="button"
             onClick={() => setCollapseSocial(false)}
-            className="inline-flex items-center gap-1.5 hover:text-gruvbox-orange"
+            className="inline-flex items-center gap-1.5 hover:text-theme-accent"
           >
             <Settings size={14} />
             Settings
@@ -224,7 +224,7 @@ function Home() {
           layout={layoutPreset}
           regions={{
             leftDock: (
-              <aside className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-2 min-h-0 h-full">
+              <aside className="rounded border border-theme bg-theme-surface p-2 min-h-0 h-full">
                 <DockStack
                   dockId="left"
                   panels={leftPanels}
@@ -233,14 +233,14 @@ function Home() {
               </aside>
             ),
             workspace: (
-              <main className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-3 flex flex-col min-h-0">
+              <main className="rounded border border-theme bg-theme-surface p-3 flex flex-col min-h-0">
                 {renderChannelPanel}
               </main>
             ),
             rightDock: (
-              <aside className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-2 min-h-0 h-full">
+              <aside className="rounded border border-theme bg-theme-surface p-2 min-h-0 h-full">
                 {collapseSocial ? (
-                  <div className="text-xs text-slate-500">Settings</div>
+                  <div className="text-xs text-theme-muted">Settings</div>
                 ) : (
                   <DockStack
                     dockId="right"

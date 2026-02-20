@@ -74,8 +74,8 @@ function DockStack({ items = [], defaultActiveId, className = "" }) {
             onClick={() => setActiveId(item.id)}
             className={`rounded px-3 py-1 border text-xs transition ${
               item.id === activeItem?.id
-                ? "border-gruvbox-orange text-gruvbox-orange bg-slate-900/60"
-                : "border-slate-800 text-slate-400 hover:text-gruvbox-orange"
+                ? "border-theme-accent text-theme-accent bg-theme-surface-alt/60"
+                : "border-theme text-theme-muted hover:text-theme-accent"
             }`}
           >
             {item.label || item.title || item.id}

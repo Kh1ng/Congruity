@@ -28,11 +28,11 @@ function DockPanel({ id, title, children }) {
 
   return (
     <div ref={setNodeRef} style={style} className="h-full flex flex-col">
-      <div className="flex items-center justify-between gap-2 rounded-md border border-slate-800 bg-slate-950/70 px-2 py-0.5 text-[0.65rem] uppercase tracking-wide text-slate-400">
+      <div className="flex items-center justify-between gap-2 rounded-md border border-theme bg-theme-surface-alt/70 px-2 py-0.5 text-[0.65rem] uppercase tracking-wide text-theme-muted">
         <span>{title}</span>
         <button
           type="button"
-          className="cursor-grab text-slate-500 hover:text-gruvbox-orange"
+          className="cursor-grab text-theme-muted hover:text-theme-accent"
           {...attributes}
           {...listeners}
           aria-label={`Drag ${title} panel`}
@@ -40,7 +40,7 @@ function DockPanel({ id, title, children }) {
           <GripVertical size={14} />
         </button>
       </div>
-      <div className="min-h-0 flex-1 overflow-auto rounded-md border border-slate-800 bg-slate-950/40 p-2 mt-1">
+      <div className="min-h-0 flex-1 overflow-auto rounded-md border border-theme bg-theme-surface-alt/40 p-2 mt-1">
         {children}
       </div>
     </div>
@@ -50,10 +50,10 @@ function DockPanel({ id, title, children }) {
 function DockPanelStatic({ title, children }) {
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between gap-2 rounded-md border border-slate-800 bg-slate-950/70 px-2 py-0.5 text-[0.65rem] uppercase tracking-wide text-slate-400">
+      <div className="flex items-center justify-between gap-2 rounded-md border border-theme bg-theme-surface-alt/70 px-2 py-0.5 text-[0.65rem] uppercase tracking-wide text-theme-muted">
         <span>{title}</span>
       </div>
-      <div className="min-h-0 flex-1 overflow-auto rounded-md border border-slate-800 bg-slate-950/40 p-2 mt-1">
+      <div className="min-h-0 flex-1 overflow-auto rounded-md border border-theme bg-theme-surface-alt/40 p-2 mt-1">
         {children}
       </div>
     </div>
