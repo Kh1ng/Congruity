@@ -45,3 +45,22 @@ The UI is not 100% yet. Remaining work (from ongoing chat + dev plan):
 ### Infra & Ops
 - [ ] Fix dashboard upload issue (needs correct repo/source).
 - [ ] Ollama embedding availability check + fallback behavior.
+
+## Self-host Quickstart (Signaling + MinIO)
+From `/Users/coltonspurgin/Developer/congruity/docker`:
+
+```bash
+./setup.sh
+```
+
+Choose mode `1` for:
+- Cloud Supabase (free tier) + local `signaling` + local `minio`.
+
+Choose mode `2` for:
+- Full local Supabase stack + local `signaling` + local `minio`.
+
+The installer now generates:
+- `/Users/coltonspurgin/Developer/congruity/docker/.env`
+- `/Users/coltonspurgin/Developer/congruity/docker/selfhosted-backend-registration.sql`
+
+Use `selfhosted-backend-registration.sql` in Supabase after creating a server to map that server to its self-hosted signaling/storage endpoints.

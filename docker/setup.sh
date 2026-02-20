@@ -45,6 +45,17 @@ fi
 if [ "$SKIP_CONFIG" != "true" ]; then
     echo -e "\n${BLUE}Configuration${NC}"
     echo "============="
+
+    echo ""
+    echo "Choose deployment mode:"
+    echo "  1) Cloud Supabase + local Signaling/MinIO (recommended for quick self-host)"
+    echo "  2) Full local Supabase stack + Signaling/MinIO"
+    read -p "Select mode (1/2, default 1): " DEPLOY_MODE
+    DEPLOY_MODE=${DEPLOY_MODE:-1}
+    USE_LOCAL_SUPABASE=false
+    if [ "$DEPLOY_MODE" = "2" ]; then
+      USE_LOCAL_SUPABASE=true
+    fi
     
     # Generate secrets
     echo -e "\n${YELLOW}Generating secure secrets...${NC}"
@@ -61,8 +72,24 @@ if [ "$SKIP_CONFIG" != "true" ]; then
     read -p "Enter your site URL (default: http://localhost:5173): " SITE_URL
     SITE_URL=${SITE_URL:-http://localhost:5173}
     
-    read -p "Enter your API URL (default: http://localhost:8000): " API_URL
-    API_URL=${API_URL:-http://localhost:8000}
+    if [ "$USE_LOCAL_SUPABASE" = "true" ]; then
+      read -p "Enter your API URL (default: http://localhost:8000): " API_URL
+      API_URL=${API_URL:-http://localhost:8000}
+    else
+      read -p "Enter your cloud Supabase URL (e.g. https://xyz.supabase.co): " API_URL
+      if [ -z "$API_URL" ]; then
+        echo -e "${RED}Cloud Supabase URL is required in mode 1${NC}"
+        exit 1
+      fi
+    fi
+
+    read -p "Public hostname/IP for self-hosted signaling+MinIO (default: localhost): " SELFHOSTED_PUBLIC_HOST
+    SELFHOSTED_PUBLIC_HOST=${SELFHOSTED_PUBLIC_HOST:-localhost}
+
+    read -p "MinIO bucket name (default: congruity-media): " MINIO_BUCKET
+    MINIO_BUCKET=${MINIO_BUCKET:-congruity-media}
+    MINIO_ROOT_USER=minioadmin
+    MINIO_ROOT_PASSWORD=$(openssl rand -base64 24 | tr -d '\n')
     
     # Dashboard credentials
     read -p "Enter dashboard username (default: admin): " DASHBOARD_USER
@@ -102,6 +129,20 @@ DASHBOARD_PASSWORD=${DASHBOARD_PASS}
 # Realtime
 SECRET_KEY_BASE=${SECRET_KEY_BASE}
 
+# Deployment mode
+USE_LOCAL_SUPABASE=${USE_LOCAL_SUPABASE}
+
+# MinIO (self-hosted media)
+MINIO_ROOT_USER=${MINIO_ROOT_USER}
+MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+MINIO_BUCKET=${MINIO_BUCKET}
+MINIO_REGION=us-east-1
+MINIO_PORT=9000
+MINIO_CONSOLE_PORT=9001
+
+# Self-hosted public endpoints
+SELFHOSTED_PUBLIC_HOST=${SELFHOSTED_PUBLIC_HOST}
+
 # Ports
 POSTGRES_PORT=5432
 API_PORT=8000
@@ -116,6 +157,15 @@ JWT_EXPIRY=3600
 EOF
 
     echo -e "\n${GREEN}✓ Configuration saved to .env${NC}"
+    echo -e "${YELLOW}Generated MinIO root password:${NC} ${MINIO_ROOT_PASSWORD}"
+fi
+
+# Load configuration from .env for this script run
+if [ -f .env ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source .env
+  set +a
 fi
 
 # Create required directories
@@ -123,9 +173,10 @@ echo -e "\n${YELLOW}Creating required directories...${NC}"
 mkdir -p volumes/db/init
 mkdir -p volumes/api
 
-# Create Kong configuration
-echo -e "${YELLOW}Creating API gateway configuration...${NC}"
-cat > volumes/api/kong.yml << 'EOF'
+if [ "${USE_LOCAL_SUPABASE}" = "true" ]; then
+  # Create Kong configuration
+  echo -e "${YELLOW}Creating API gateway configuration...${NC}"
+  cat > volumes/api/kong.yml << 'EOF'
 _format_version: "2.1"
 _transform: true
 
@@ -190,16 +241,26 @@ services:
     plugins:
       - name: cors
 EOF
+fi
 
 echo -e "${GREEN}✓ Directories and configurations created${NC}"
 
 # Pull images
 echo -e "\n${YELLOW}Pulling Docker images (this may take a while)...${NC}"
-docker compose pull
+if [ "${USE_LOCAL_SUPABASE}" = "true" ]; then
+  docker compose pull
+else
+  docker compose pull signaling minio minio-init
+fi
 
 # Start services
 echo -e "\n${YELLOW}Starting services...${NC}"
-docker compose up -d
+if [ "${USE_LOCAL_SUPABASE}" = "true" ]; then
+  docker compose up -d
+else
+  docker compose up -d signaling minio
+  docker compose run --rm minio-init || true
+fi
 
 # Wait for services to be healthy
 echo -e "\n${YELLOW}Waiting for services to start...${NC}"
@@ -210,19 +271,64 @@ echo -e "\n${BLUE}Service Status${NC}"
 echo "=============="
 docker compose ps
 
+SIGNALING_PUBLIC_URL="wss://${SELFHOSTED_PUBLIC_HOST}:${SIGNALING_PORT:-3001}"
+MINIO_PUBLIC_BASE_URL="http://${SELFHOSTED_PUBLIC_HOST}:${MINIO_PORT:-9000}/${MINIO_BUCKET}"
+cat > selfhosted-backend-registration.sql << EOF
+-- Run this in your Supabase SQL editor (cloud or local) after creating a server.
+-- Replace SERVER_UUID_HERE with your actual server id.
+INSERT INTO public.server_backends (
+  server_id,
+  backend_mode,
+  signaling_url,
+  storage_provider,
+  storage_public_base_url,
+  storage_bucket,
+  storage_region,
+  created_by
+) VALUES (
+  'SERVER_UUID_HERE',
+  'self_hosted',
+  '${SIGNALING_PUBLIC_URL}',
+  'minio',
+  '${MINIO_PUBLIC_BASE_URL}',
+  '${MINIO_BUCKET}',
+  'us-east-1',
+  auth.uid()
+)
+ON CONFLICT (server_id) DO UPDATE
+SET
+  backend_mode = EXCLUDED.backend_mode,
+  signaling_url = EXCLUDED.signaling_url,
+  storage_provider = EXCLUDED.storage_provider,
+  storage_public_base_url = EXCLUDED.storage_public_base_url,
+  storage_bucket = EXCLUDED.storage_bucket,
+  storage_region = EXCLUDED.storage_region;
+EOF
+
 echo -e "\n${GREEN}╔═══════════════════════════════════════════╗"
 echo "║     Setup Complete!                       ║"
 echo "╚═══════════════════════════════════════════╝${NC}"
 echo ""
 echo "Your Congruity server is now running!"
 echo ""
-echo -e "  ${BLUE}API:${NC}        ${API_URL:-http://localhost:8000}"
-echo -e "  ${BLUE}Signaling:${NC}  ws://localhost:${SIGNALING_PORT:-3001}"
+if [ "${USE_LOCAL_SUPABASE}" = "true" ]; then
+  echo -e "  ${BLUE}API:${NC}        ${API_URL:-http://localhost:8000}"
+else
+  echo -e "  ${BLUE}Supabase:${NC}   ${API_URL}"
+fi
+echo -e "  ${BLUE}Signaling:${NC}  ${SIGNALING_PUBLIC_URL}"
+echo -e "  ${BLUE}MinIO:${NC}      http://${SELFHOSTED_PUBLIC_HOST}:${MINIO_PORT:-9000}"
+echo -e "  ${BLUE}MinIO Console:${NC} http://${SELFHOSTED_PUBLIC_HOST}:${MINIO_CONSOLE_PORT:-9001}"
+echo -e "  ${BLUE}MinIO Bucket:${NC} ${MINIO_BUCKET}"
+echo ""
+echo -e "${YELLOW}Server backend mapping SQL:${NC} docker/selfhosted-backend-registration.sql"
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"
-echo "1. Configure your Congruity client to connect to this server"
-echo "2. Set VITE_SUPABASE_URL=${API_URL:-http://localhost:8000}"
-echo "3. Set VITE_SUPABASE_ANON_KEY to the ANON_KEY from .env"
+echo "1. Configure your Congruity client:"
+echo "   VITE_SUPABASE_URL=${API_URL}"
+echo "   VITE_SUPABASE_ANON_KEY=<anon key for the selected Supabase project>"
+echo "2. Run selfhosted-backend-registration.sql in Supabase for each self-hosted server."
+echo "3. Restart client and join/select the server."
 echo ""
 echo -e "${YELLOW}Useful commands:${NC}"
 echo "  docker compose logs -f    # View logs"

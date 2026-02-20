@@ -6,4 +6,5 @@ export { useWebRTC } from "./useWebRTC";
 export { useFriends } from "./useFriends";
 export { useDirectMessages } from "./useDirectMessages";
 export { useServerMembers } from "./useServerMembers";
+export { useServerBackend } from "./useServerBackend";
 export { useTheme, ThemeProvider } from "./useTheme";

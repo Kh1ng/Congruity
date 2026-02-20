@@ -14,6 +14,9 @@
 - [ ] CLI: watch mode, typing indicator, message edits.
 - [ ] Infra: resolve dashboard upload issue.
 - [ ] Ops: Ollama embeddings availability + fallback behavior.
+- [ ] Self-hosting: one-command setup for signaling + MinIO with cloud Supabase option.
+- [ ] Self-hosting: persist per-server backend mapping (signaling/storage endpoints).
+- [ ] Installer/TUI: generate copy-paste backend registration SQL for hobbyist setup in under 5 minutes.
 
 ## Auth & Profiles
 ### Core Authentication

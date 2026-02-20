@@ -157,12 +157,18 @@ function VoicePanel({ channel, voice, memberMap }) {
                 {[0, 1, 2, 3, 4].map((index) => {
                   const levelKey = participant.isLocal ? "local" : participant.id;
                   const level = Number(audioLevels?.[levelKey] || 0);
-                  const barHeight = Math.max(4, Math.round((8 + index * 2) * (0.5 + level)));
+                  const isIdle = level < 0.04;
+                  const barHeight = isIdle
+                    ? 4
+                    : Math.max(6, Math.round((7 + index * 2) * (0.4 + level)));
                   return (
                   <span
                     key={`${participant.id}-${index}`}
-                    className={`inline-block w-1 rounded bg-theme-accent ${index % 2 === 0 ? "animate-pulse" : ""}`}
-                    style={{ height: `${barHeight}px` }}
+                    className={`inline-block rounded-full bg-theme-accent transition-all ${index % 2 === 0 && !isIdle ? "animate-pulse" : ""}`}
+                    style={{
+                      width: isIdle ? "0.3rem" : "0.2rem",
+                      height: `${barHeight}px`,
+                    }}
                   />
                   );
                 })}

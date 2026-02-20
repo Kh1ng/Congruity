@@ -26,7 +26,9 @@ const getUserMediaCompat = async (constraints) => {
     });
   }
 
-  throw new Error("Microphone access unavailable in this runtime.");
+  throw new Error(
+    "Microphone access API is not available in this runtime. In Tauri, confirm app permissions for microphone/camera in OS settings."
+  );
 };
 
 const getDisplayMediaCompat = async (constraints) => {
@@ -59,8 +61,9 @@ const ICE_SERVERS = [
  * Hook for WebRTC voice/video calls
  * @param {string} roomId - Room/channel ID to join
  */
-export function useWebRTC(roomId) {
+export function useWebRTC(roomId, options = {}) {
   const { user } = useAuth();
+  const signalingUrl = options.signalingUrl || SIGNALING_URL || DEFAULT_SIGNALING_URL;
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [localStream, setLocalStream] = useState(null);
@@ -370,7 +373,7 @@ export function useWebRTC(roomId) {
   const initSocket = useCallback(() => {
     if (socketRef.current?.connected) return socketRef.current;
 
-    const socket = io(SIGNALING_URL || DEFAULT_SIGNALING_URL, {
+    const socket = io(signalingUrl, {
       transports: ["websocket"],
       reconnection: true,
       reconnectionAttempts: 5,
@@ -491,7 +494,7 @@ export function useWebRTC(roomId) {
 
     socketRef.current = socket;
     return socket;
-  }, [roomId, user?.id, createPeerConnection, removePeerConnection, playCue]);
+  }, [roomId, user?.id, createPeerConnection, removePeerConnection, playCue, signalingUrl]);
 
   /**
    * Start a call with media
@@ -538,7 +541,20 @@ export function useWebRTC(roomId) {
         await renegotiateAll();
       } catch (err) {
         console.error("Error starting call:", err);
-        setError(err.message);
+        const mappedMessage = (() => {
+          const name = err?.name || "";
+          if (name === "NotAllowedError") {
+            return "Microphone permission denied. Allow mic access in system settings and retry.";
+          }
+          if (name === "NotFoundError") {
+            return "No microphone device found. Connect a mic and retry.";
+          }
+          if (name === "NotReadableError") {
+            return "Microphone is busy in another app. Close other apps using it and retry.";
+          }
+          return err?.message || "Unable to start voice session.";
+        })();
+        setError(mappedMessage);
         throw err;
       } finally {
         setIsConnecting(false);

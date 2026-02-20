@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Settings } from "lucide-react";
-import { useWebRTC, useServerMembers } from "../hooks";
+import { useWebRTC, useServerMembers, useServerBackend } from "../hooks";
 import ServerList from "./ServerList";
 import ChannelList from "./ChannelList";
 import Messages from "./Message";
@@ -17,7 +17,10 @@ function Home() {
   const [activeVoiceChannel, setActiveVoiceChannel] = useState(null);
   const [collapseSocial, setCollapseSocial] = useState(true);
 
-  const voiceSession = useWebRTC(activeVoiceChannel?.id);
+  const { backend: serverBackend } = useServerBackend(selectedServer?.id);
+  const voiceSession = useWebRTC(activeVoiceChannel?.id, {
+    signalingUrl: serverBackend?.signaling_url,
+  });
   const { memberMap } = useServerMembers(selectedServer?.id);
 
   useEffect(() => {
@@ -44,8 +47,8 @@ function Home() {
     return <Messages channelId={selectedChannel.id} memberMap={memberMap} />;
   }, [selectedChannel, voiceSession, memberMap]);
 
-  const leftDockWidth = "320px";
-  const rightDockWidth = collapseSocial ? "0px" : "300px";
+  const leftDockWidth = "minmax(250px, 22vw)";
+  const rightDockWidth = collapseSocial ? "0px" : "minmax(260px, 24vw)";
 
   const layoutPreset = useMemo(
     () => ({
@@ -145,7 +148,6 @@ function Home() {
           serverId={selectedServer?.id}
           voice={voiceSession}
           voiceChannel={activeVoiceChannel}
-          memberMap={memberMap}
         />
       ),
     });
@@ -153,7 +155,6 @@ function Home() {
     return listPanelsByDock("right");
   }, [
     activeVoiceChannel,
-    memberMap,
     selectedServer,
     voiceSession,
   ]);
