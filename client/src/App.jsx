@@ -8,7 +8,7 @@ function App() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-slate-900 text-slate-200">
+      <div className="flex h-screen items-center justify-center bg-theme-bg text-theme">
         <div className="text-xl">Loading...</div>
       </div>
     );
@@ -16,9 +16,9 @@ function App() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
+      <div className="min-h-screen bg-theme-bg text-theme">
         <div className="flex flex-col items-center justify-center pt-20">
-          <h1 className="text-center p-5 m-5 text-gruvbox-orange text-3xl font-bold">
+          <h1 className="m-5 p-5 text-center text-3xl font-bold text-theme-accent">
             Sign in to Congruity
           </h1>
           <Login />
@@ -28,15 +28,15 @@ function App() {
   }
 
   return (
-    <div className="bg-[var(--color-bg)] h-screen text-[var(--color-text)] px-6 py-6 flex flex-col">
+    <div className="flex h-screen flex-col bg-theme-bg px-6 py-6 text-theme">
       <div className="flex justify-between items-center mb-4 shrink-0">
-        <span className="text-sm text-slate-400">
+        <span className="text-sm text-theme-muted">
           Logged in as {user.email}
         </span>
         <button
           type="button"
           onClick={signOut}
-          className="text-sm text-slate-400 hover:text-gruvbox-orange"
+          className="text-sm text-theme-muted transition hover:text-theme-accent"
         >
           Sign Out
         </button>

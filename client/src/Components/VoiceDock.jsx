@@ -1,15 +1,14 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import {
-  Headphones,
   Mic,
   MicOff,
   MonitorUp,
   PhoneOff,
-  Settings,
   Video,
   VideoOff,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import Avatar from "./Avatar";
 
 function StreamPreview({ stream }) {
   const videoRef = useRef(null);
@@ -95,50 +94,56 @@ function VoiceDock({ channel, voice, memberMap, embedded = false }) {
     );
   };
 
+  const rootClasses = embedded
+    ? "rounded-lg border border-theme bg-theme-surface-alt/70 p-3"
+    : "fixed bottom-4 left-1/2 z-40 w-[calc(100%-2rem)] max-w-6xl -translate-x-1/2 rounded-lg border border-theme bg-theme-surface-alt/80 p-3 shadow-lg";
+
+  const controlButtonClass =
+    "inline-flex h-8 w-8 items-center justify-center rounded-md border border-theme bg-theme-surface text-theme-muted transition hover:text-theme-accent disabled:cursor-not-allowed disabled:opacity-50";
+
   return (
-    <div
-      className={
-        embedded
-          ? "rounded border border-slate-800 bg-slate-950/80 p-3"
-          : "fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-6xl bg-slate-950/80 border border-slate-800 rounded p-2 z-40 shadow-lg"
-      }
-    >
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-xs text-slate-400">Voice</div>
-          <div className="text-sm font-semibold">
+    <div className={rootClasses}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-xs uppercase tracking-wide text-theme-muted">
+            Voice
+          </div>
+          <div className="truncate text-sm font-semibold text-theme">
             {isConnected ? "Connected" : "Not connected"} • #{channel.name}
           </div>
-          <div className="text-xs text-slate-500">In room: {roomUsers?.length || 0}</div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5">
           <button
+            type="button"
             onClick={toggleMute}
-            className="inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium hover:text-gruvbox-orange"
+            className={controlButtonClass}
             disabled={!isConnected}
             title={isMuted ? "Unmute" : "Mute"}
           >
             {isMuted ? <MicOff size={14} /> : <Mic size={14} />}
           </button>
           <button
+            type="button"
             onClick={toggleVideo}
-            className="inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium hover:text-gruvbox-orange"
+            className={controlButtonClass}
             disabled={!isConnected}
             title={isVideoOff ? "Camera On" : "Camera Off"}
           >
             {isVideoOff ? <Video size={14} /> : <VideoOff size={14} />}
           </button>
           <button
+            type="button"
             onClick={isScreenSharing ? stopScreenShare : startScreenShare}
-            className="inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium hover:text-gruvbox-orange"
+            className={controlButtonClass}
             disabled={!isConnected}
             title={isScreenSharing ? "Stop Share" : "Share Screen"}
           >
             <MonitorUp size={14} />
           </button>
           <button
+            type="button"
             onClick={endCall}
-            className="inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium hover:text-gruvbox-orange"
+            className={controlButtonClass}
             disabled={!isConnected}
             title="Leave"
           >
@@ -147,61 +152,42 @@ function VoiceDock({ channel, voice, memberMap, embedded = false }) {
         </div>
       </div>
 
-      <div className="mt-3 flex items-center justify-between rounded border border-slate-800 bg-slate-950/70 px-3 py-2">
-        <div className="flex items-center gap-2">
-          <div className="h-9 w-9 rounded-full bg-slate-900/80 border border-slate-700 flex items-center justify-center text-xs font-semibold text-slate-200">
-            {participants[0]?.initials || "ME"}
+      <div className="mt-3 flex items-center justify-between rounded-md border border-theme bg-theme-surface px-3 py-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <Avatar
+            name={participants[0]?.name || "You"}
+            size="md"
+            className="shrink-0"
+          />
+          <div className="min-w-0 text-xs">
+            <div className="truncate font-semibold text-theme">
+              {participants[0]?.name || "You"}
+            </div>
+            <div className="truncate text-theme-muted">
+              {isConnected ? "In voice" : "Disconnected"}
+            </div>
           </div>
-          <div className="text-xs">
-            <div className="text-slate-100 font-semibold">{participants[0]?.name || "You"}</div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="inline-flex items-center justify-center rounded bg-slate-900/60 px-2.5 py-1 text-xs hover:text-gruvbox-orange"
-            title={isMuted ? "Unmute" : "Mute"}
-            onClick={toggleMute}
-            disabled={!isConnected}
-          >
-            {isMuted ? <MicOff size={14} /> : <Mic size={14} />}
-          </button>
-          <button
-            type="button"
-            className="inline-flex items-center justify-center rounded bg-slate-900/60 px-2.5 py-1 text-xs hover:text-gruvbox-orange"
-            title="Deafen"
-            onClick={() => {}}
-          >
-            <Headphones size={14} />
-          </button>
-          <button
-            type="button"
-            className="inline-flex items-center justify-center rounded bg-slate-900/60 px-2.5 py-1 text-xs hover:text-gruvbox-orange"
-            title="Voice settings"
-            onClick={() => {}}
-          >
-            <Settings size={14} />
-          </button>
         </div>
       </div>
 
-      <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-400">
+      <div className="mt-2 flex flex-wrap gap-2 text-xs text-theme-muted">
         {participants.map((participant) => (
           <div key={participant.id} className="relative group">
             <button
               type="button"
-              className="h-8 w-8 rounded-full border border-slate-700 bg-slate-900/70 text-[0.65rem] font-semibold"
+              className="h-8 w-8 rounded-full border border-theme bg-theme-surface text-[0.65rem] font-semibold text-theme-muted transition hover:border-theme-accent hover:text-theme-accent"
               title={participant.name}
               onClick={() => participant.stream && toggleStage(participant.id)}
             >
               {participant.initials}
             </button>
             {participant.stream && (
-              <div className="absolute bottom-10 left-1/2 z-50 hidden -translate-x-1/2 rounded border border-slate-800 bg-slate-950/90 p-2 text-[0.65rem] text-slate-300 group-hover:block">
+              <div className="absolute bottom-10 left-1/2 z-50 hidden -translate-x-1/2 rounded-md border border-theme bg-theme-surface p-2 text-[0.65rem] text-theme-muted group-hover:block">
                 <div className="mb-1">{participant.name}</div>
                 <StreamPreview stream={participant.stream} />
                 <button
-                  className="mt-2 w-full rounded border border-slate-700 px-2 py-1 hover:text-gruvbox-orange"
+                  type="button"
+                  className="mt-2 w-full rounded border border-theme bg-theme-surface-alt px-2 py-1 text-theme-muted transition hover:text-theme-accent"
                   onClick={() => toggleStage(participant.id)}
                 >
                   {stageStreamIds.includes(participant.id) ? "Remove" : "Add"}

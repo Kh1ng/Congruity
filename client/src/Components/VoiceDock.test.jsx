@@ -31,8 +31,35 @@ describe("VoiceDock", () => {
     render(<VoiceDock channel={channel} voice={voice} memberMap={{}} />);
 
     expect(screen.getByText(/Connected/)).toBeInTheDocument();
-    expect(screen.getByText(/In room: 2/)).toBeInTheDocument();
+    expect(screen.queryByText(/In room:/)).not.toBeInTheDocument();
     expect(screen.getByTitle(/abc123/)).toBeInTheDocument();
     expect(screen.getByTitle(/def456/)).toBeInTheDocument();
+  });
+
+  it("renders compact embedded controls with theme token classes", () => {
+    const channel = { id: "c1", name: "voice-lounge" };
+    const voice = {
+      isConnected: true,
+      isMuted: false,
+      isVideoOff: true,
+      isScreenSharing: false,
+      toggleMute: vi.fn(),
+      toggleVideo: vi.fn(),
+      startScreenShare: vi.fn(),
+      stopScreenShare: vi.fn(),
+      endCall: vi.fn(),
+      roomUsers: ["abc123"],
+      remoteStreams: [],
+      localStream: null,
+      stageStreamIds: [],
+      setStageStreamIds: vi.fn(),
+    };
+
+    const { container } = render(
+      <VoiceDock channel={channel} voice={voice} memberMap={{}} embedded />
+    );
+
+    expect(container.firstChild).toHaveClass("border-theme", "bg-theme-surface-alt/70");
+    expect(screen.getAllByTitle(/mute|unmute/i)).toHaveLength(1);
   });
 });

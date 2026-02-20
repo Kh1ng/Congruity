@@ -17,13 +17,13 @@ function ChannelList({
 
   if (!serverId) {
     return (
-      <div className="text-slate-400">Select a server to view channels.</div>
+      <div className="text-theme-muted">Select a server to view channels.</div>
     );
   }
 
   if (loading) {
     return (
-      <div className="text-slate-400 flex items-center gap-2">
+      <div className="flex items-center gap-2 text-theme-muted">
         <Spinner size={14} /> Loading channels...
       </div>
     );
@@ -32,10 +32,10 @@ function ChannelList({
 
   return (
     <div>
-      <h2 className="text-lg font-semibold mb-2">Channels</h2>
+      <h2 className="mb-2 text-lg font-semibold text-theme">Channels</h2>
 
       <div className="mb-2">
-        <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">
+        <div className="mb-1 text-xs uppercase tracking-wide text-theme-muted">
           Text
         </div>
         <ul className="space-y-1">
@@ -45,14 +45,14 @@ function ChannelList({
               <li key={ch.id}>
                 <button
                   type="button"
-                  className={`w-full text-left px-2 py-1 rounded flex items-center gap-2 hover:bg-slate-800 hover:text-gruvbox-orange ${
+                  className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left transition hover:bg-theme-surface-alt hover:text-theme-accent ${
                     isActive
-                      ? "bg-slate-800 text-gruvbox-orange"
-                      : "text-slate-200"
+                      ? "bg-theme-surface-alt text-theme-accent"
+                      : "text-theme"
                   }`}
                   onClick={() => onSelectChannel?.(ch)}
                 >
-                  <Hash size={14} className="text-slate-500" />
+                  <Hash size={14} className="text-theme-muted" />
                   <span>{ch.name}</span>
                 </button>
               </li>
@@ -62,7 +62,7 @@ function ChannelList({
       </div>
 
       <div className="mb-2">
-        <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">
+        <div className="mb-1 text-xs uppercase tracking-wide text-theme-muted">
           Voice
         </div>
         <ul className="space-y-1">
@@ -72,20 +72,20 @@ function ChannelList({
               <li key={ch.id}>
                 <button
                   type="button"
-                  className={`w-full text-left px-2 py-1 rounded flex items-center gap-2 hover:bg-slate-800 hover:text-gruvbox-orange ${
+                  className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left transition hover:bg-theme-surface-alt hover:text-theme-accent ${
                     isActive
-                      ? "bg-slate-800 text-gruvbox-orange"
-                      : "text-slate-200"
+                      ? "bg-theme-surface-alt text-theme-accent"
+                      : "text-theme"
                   }`}
                   onClick={() => onSelectChannel?.(ch)}
                 >
-                  <Volume2 size={14} className="text-slate-500" />
+                  <Volume2 size={14} className="text-theme-muted" />
                   <span>{ch.name}</span>
                 </button>
                 {selectedChannel?.id === ch.id &&
                   activeVoiceChannelId === ch.id &&
                   (roomUsers?.length || 0) > 0 && (
-                    <div className="ml-6 mt-1 space-y-1 text-xs text-slate-300">
+                    <div className="ml-6 mt-1 space-y-1 text-xs text-theme-muted">
                       {(roomUsers || []).map((entry) => {
                         const userId = entry?.userId || entry;
                         const profile = memberMap?.[userId]?.profile || {};
@@ -96,7 +96,7 @@ function ChannelList({
                           "Unknown";
                         return (
                           <div key={userId} className="flex items-center gap-2">
-                            <span className="h-2 w-2 rounded-full bg-slate-500" />
+                            <span className="h-2 w-2 rounded-full bg-theme-accent" />
                             <span>{name}</span>
                           </div>
                         );
@@ -111,7 +111,7 @@ function ChannelList({
 
       {videoChannels.length > 0 && (
         <div>
-          <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">
+          <div className="mb-1 text-xs uppercase tracking-wide text-theme-muted">
             Video
           </div>
           <ul className="space-y-1">
@@ -121,14 +121,14 @@ function ChannelList({
                 <li key={ch.id}>
                   <button
                     type="button"
-                    className={`w-full text-left px-2 py-1 rounded flex items-center gap-2 hover:bg-slate-800 hover:text-gruvbox-orange ${
+                    className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left transition hover:bg-theme-surface-alt hover:text-theme-accent ${
                       isActive
-                        ? "bg-slate-800 text-gruvbox-orange"
-                        : "text-slate-200"
+                        ? "bg-theme-surface-alt text-theme-accent"
+                        : "text-theme"
                     }`}
                     onClick={() => onSelectChannel?.(ch)}
                   >
-                    <Video size={14} className="text-slate-500" />
+                    <Video size={14} className="text-theme-muted" />
                     <span>{ch.name}</span>
                   </button>
                 </li>

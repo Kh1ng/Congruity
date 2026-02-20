@@ -97,7 +97,7 @@ function Home() {
       title: "Servers",
       order: 1,
       content: collapseServers ? (
-        <div className="text-xs text-slate-500">Servers hidden</div>
+        <div className="text-xs text-theme-muted">Servers hidden</div>
       ) : (
         <ServerList
           onSelectServer={(server) => {
@@ -160,8 +160,8 @@ function Home() {
     collapseChannels,
     collapseServers,
     memberMap,
+    selectedChannel,
     selectedServer?.id,
-    selectedChannel?.id,
     voiceSession,
   ]);
 
@@ -194,7 +194,16 @@ function Home() {
     });
 
     return listPanelsByDock("right");
-  }, [memberMap, selectedServer]);
+  }, [
+    activeVoiceChannel,
+    collapseChannels,
+    collapseServers,
+    collapseSocial,
+    layoutLocked,
+    memberMap,
+    selectedServer,
+    voiceSession,
+  ]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
