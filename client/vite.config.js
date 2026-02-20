@@ -76,6 +76,16 @@ export default defineConfig(({ mode }) => {
       environment: "jsdom",
       setupFiles: ["./src/test/setup.js"],
       include: ["src/**/*.{test,spec}.{js,jsx,ts,tsx}"],
+      coverage: {
+        provider: "v8",
+        reporter: ["text", "html", "json-summary"],
+        thresholds: {
+          statements: 50,
+          lines: 50,
+          functions: 50,
+          branches: 40,
+        },
+      },
     },
     resolve: {
       alias: {
