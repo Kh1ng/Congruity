@@ -97,6 +97,7 @@ export function useWebRTC(roomId, options = {}) {
   const peerConnectionsRef = useRef(new Map());
   const peerMetaRef = useRef(new Map());
   const pendingCandidatesRef = useRef(new Map());
+  const joinedRoomIdRef = useRef(null);
   const localStreamRef = useRef(null);
   const remoteStreamsRef = useRef(new Map());
   const audioContextRef = useRef(null);
@@ -318,8 +319,21 @@ export function useWebRTC(roomId, options = {}) {
 
       pc.onconnectionstatechange = () => {
         console.log(`Connection state with ${userId}:`, pc.connectionState);
-      if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
-          removePeerConnection(userId);
+        if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
+          pc.close();
+          peerConnectionsRef.current.delete(userId);
+          peerMetaRef.current.delete(userId);
+          cleanupAudioMonitor(userId);
+          setRemoteStreams((prev) => {
+            const updated = new Map(prev);
+            updated.delete(userId);
+            return updated;
+          });
+          setAudioLevels((prev) => {
+            const next = { ...prev };
+            delete next[userId];
+            return next;
+          });
         }
       };
 
@@ -345,7 +359,7 @@ export function useWebRTC(roomId, options = {}) {
 
       return pc;
     },
-    [roomId, monitorStreamAudio]
+    [roomId, monitorStreamAudio, cleanupAudioMonitor]
   );
 
   /**
@@ -389,6 +403,7 @@ export function useWebRTC(roomId, options = {}) {
       setLocalSocketId(socket.id);
       if (roomId) {
         socket.emit("join-room", { roomId, userId: user?.id });
+        joinedRoomIdRef.current = roomId;
       }
       playCue("connected");
     });
@@ -767,7 +782,10 @@ export function useWebRTC(roomId, options = {}) {
 
     // Disconnect socket
     if (socketRef.current) {
-      socketRef.current.emit("leave-room", { roomId });
+      if (joinedRoomIdRef.current) {
+        socketRef.current.emit("leave-room", { roomId: joinedRoomIdRef.current });
+        joinedRoomIdRef.current = null;
+      }
       socketRef.current.disconnect();
       socketRef.current = null;
     }
@@ -784,11 +802,32 @@ export function useWebRTC(roomId, options = {}) {
     setAudioLevels({});
     stopAudioAnimation();
     playCue("leave");
-  }, [cleanupAudioMonitor, playCue, roomId, stopAudioAnimation]);
+  }, [cleanupAudioMonitor, playCue, stopAudioAnimation]);
 
   useEffect(() => {
     endCallRef.current = endCall;
   }, [endCall]);
+
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket || !socket.connected || !isConnected) return;
+
+    if (joinedRoomIdRef.current && joinedRoomIdRef.current !== roomId) {
+      socket.emit("leave-room", { roomId: joinedRoomIdRef.current });
+      joinedRoomIdRef.current = null;
+
+      // Remove stale peer state from the previous room before joining a new one.
+      peerConnectionsRef.current.forEach((_, peerId) => {
+        removePeerConnection(peerId);
+      });
+      pendingCandidatesRef.current.clear();
+    }
+
+    if (roomId && joinedRoomIdRef.current !== roomId) {
+      socket.emit("join-room", { roomId, userId: user?.id });
+      joinedRoomIdRef.current = roomId;
+    }
+  }, [roomId, isConnected, removePeerConnection, user?.id]);
 
   // Cleanup on unmount
   useEffect(() => {
