@@ -31,12 +31,18 @@ function ChannelList({
       setPresenceByRoom({});
       return undefined;
     }
+    const voiceChannelIds = (voiceChannels || []).map((channel) => channel.id).filter(Boolean);
+    if (voiceChannelIds.length === 0) {
+      setPresenceByRoom({});
+      return undefined;
+    }
 
     let isMounted = true;
 
     const fetchPresence = async () => {
       try {
-        const response = await fetch(`${presenceUrl}/rooms`);
+        const query = encodeURIComponent(voiceChannelIds.join(","));
+        const response = await fetch(`${presenceUrl}/rooms?roomIds=${query}`);
         if (!response.ok) return;
         const data = await response.json();
         if (!isMounted) return;
@@ -59,7 +65,7 @@ function ChannelList({
       isMounted = false;
       clearInterval(intervalId);
     };
-  }, [presenceUrl, serverId]);
+  }, [presenceUrl, serverId, voiceChannels]);
 
   if (!serverId) {
     return (

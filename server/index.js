@@ -13,17 +13,6 @@ const path = require("path");
 const { Server } = require("socket.io");
 
 const app = express();
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  if (req.method === "OPTIONS") {
-    res.sendStatus(204);
-    return;
-  }
-  next();
-});
-
 const corsOrigins = (process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : [])
   .map((origin) => origin.trim())
   .filter(Boolean);
@@ -47,14 +36,57 @@ const isDefaultAllowedOrigin = (origin) => {
 };
 
 const isAllowedOrigin = (origin) => {
+  // Non-browser clients may not send Origin.
+  if (!origin) return true;
+
+  // In production, require explicit allow-list for browser origins.
+  if (process.env.NODE_ENV === "production" && corsOrigins.length === 0) {
+    return false;
+  }
+
   if (corsOrigins.length === 0) {
     return isDefaultAllowedOrigin(origin);
   }
 
-  if (!origin) return true;
   if (corsOrigins.includes(origin)) return true;
-  return isDefaultAllowedOrigin(origin);
+  return process.env.NODE_ENV !== "production" && isDefaultAllowedOrigin(origin);
 };
+
+const setSecurityHeaders = (res) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  res.setHeader("Cross-Origin-Resource-Policy", "same-site");
+};
+
+app.use((req, res, next) => {
+  setSecurityHeaders(res);
+  const origin = req.headers.origin;
+
+  if (origin && isAllowedOrigin(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+  }
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  if (req.method === "OPTIONS") {
+    if (origin && !isAllowedOrigin(origin)) {
+      res.sendStatus(403);
+      return;
+    }
+    res.sendStatus(204);
+    return;
+  }
+
+  if (origin && !isAllowedOrigin(origin)) {
+    res.status(403).json({ error: "Origin not allowed" });
+    return;
+  }
+
+  next();
+});
 
 const fallbackCertPath = path.join(__dirname, "../client/.cert/dev-cert.pem");
 const fallbackKeyPath = path.join(__dirname, "../client/.cert/dev-key.pem");
@@ -100,6 +132,39 @@ const io = new Server(server, {
 
 // Track users in rooms (roomId -> Map<socketId, userId>)
 const rooms = new Map();
+const socketRoomMap = new Map();
+const signalingRateLimits = new Map();
+
+const VALID_ID = /^[a-zA-Z0-9_-]{1,128}$/;
+const isValidId = (value) => typeof value === "string" && VALID_ID.test(value);
+
+const isValidIceCandidate = (candidate) => {
+  if (!candidate || typeof candidate !== "object") return false;
+  const c = candidate.candidate;
+  return typeof c === "string" && c.length <= 4096;
+};
+
+const isValidSdp = (desc) => {
+  if (!desc || typeof desc !== "object") return false;
+  if (!["offer", "answer"].includes(desc.type)) return false;
+  return typeof desc.sdp === "string" && desc.sdp.length > 0 && desc.sdp.length <= 200000;
+};
+
+const throttleSocketEvent = (socketId, eventName, maxPerWindow = 100, windowMs = 10_000) => {
+  const key = `${socketId}:${eventName}`;
+  const now = Date.now();
+  const current = signalingRateLimits.get(key) || { count: 0, windowStart: now };
+  const elapsed = now - current.windowStart;
+
+  if (elapsed > windowMs) {
+    signalingRateLimits.set(key, { count: 1, windowStart: now });
+    return false;
+  }
+
+  current.count += 1;
+  signalingRateLimits.set(key, current);
+  return current.count > maxPerWindow;
+};
 
 // Health check endpoint
 app.get("/health", (req, res) => {
@@ -111,7 +176,23 @@ app.get("/", (req, res) => {
 });
 
 app.get("/rooms", (req, res) => {
-  const roomsSnapshot = Array.from(rooms.entries()).map(([roomId, users]) => ({
+  const requestedRoomIdsRaw = String(req.query.roomIds || "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+
+  const requestedRoomIds = requestedRoomIdsRaw
+    .filter(isValidId)
+    .slice(0, 100);
+
+  const roomEntries =
+    requestedRoomIds.length > 0
+      ? requestedRoomIds
+          .filter((roomId) => rooms.has(roomId))
+          .map((roomId) => [roomId, rooms.get(roomId)])
+      : [];
+
+  const roomsSnapshot = roomEntries.map(([roomId, users]) => ({
     roomId,
     users: Array.from(users.entries()).map(([socketId, userId]) => ({
       socketId,
@@ -134,7 +215,26 @@ io.on("connection", (socket) => {
 
   // Join a voice/video room
   socket.on("join-room", ({ roomId, userId }) => {
+    if (!isValidId(roomId)) return;
+    if (userId && !isValidId(userId)) return;
+
+    const previousRoomId = socketRoomMap.get(socket.id);
+    if (previousRoomId && previousRoomId !== roomId && rooms.has(previousRoomId)) {
+      socket.leave(previousRoomId);
+      const previousParticipantId = rooms.get(previousRoomId).get(socket.id) || socket.id;
+      rooms.get(previousRoomId).delete(socket.id);
+      socket.to(previousRoomId).emit("user-left", {
+        socketId: socket.id,
+        userId: previousParticipantId,
+      });
+      emitRoomUsers(previousRoomId);
+      if (rooms.get(previousRoomId).size === 0) {
+        rooms.delete(previousRoomId);
+      }
+    }
+
     socket.join(roomId);
+    socketRoomMap.set(socket.id, roomId);
 
     const participantId = userId || socket.id;
 
@@ -156,6 +256,7 @@ io.on("connection", (socket) => {
 
   // Leave a room
   socket.on("leave-room", ({ roomId }) => {
+    if (!isValidId(roomId)) return;
     socket.leave(roomId);
 
     if (rooms.has(roomId)) {
@@ -163,6 +264,9 @@ io.on("connection", (socket) => {
       rooms.get(roomId).delete(socket.id);
       if (rooms.get(roomId).size === 0) {
         rooms.delete(roomId);
+      }
+      if (socketRoomMap.get(socket.id) === roomId) {
+        socketRoomMap.delete(socket.id);
       }
 
       socket.to(roomId).emit("user-left", {
@@ -176,16 +280,22 @@ io.on("connection", (socket) => {
 
   // WebRTC signaling: offer
   socket.on("offer", ({ offer, to, roomId, from }) => {
+    if (throttleSocketEvent(socket.id, "offer", 30, 10_000)) return;
+    if (!isValidId(to) || !isValidId(roomId) || !isValidSdp(offer)) return;
     socket.to(to).emit("offer", { offer, from: from || socket.id });
   });
 
   // WebRTC signaling: answer
   socket.on("answer", ({ answer, to, roomId, from }) => {
+    if (throttleSocketEvent(socket.id, "answer", 30, 10_000)) return;
+    if (!isValidId(to) || !isValidId(roomId) || !isValidSdp(answer)) return;
     socket.to(to).emit("answer", { answer, from: from || socket.id });
   });
 
   // WebRTC signaling: ICE candidate
   socket.on("ice-candidate", ({ candidate, to, roomId, from }) => {
+    if (throttleSocketEvent(socket.id, "ice-candidate", 300, 10_000)) return;
+    if (!isValidId(to) || !isValidId(roomId) || !isValidIceCandidate(candidate)) return;
     socket.to(to).emit("ice-candidate", { candidate, from: from || socket.id });
   });
 
@@ -208,6 +318,7 @@ io.on("connection", (socket) => {
         }
       }
     });
+    socketRoomMap.delete(socket.id);
   });
 });
 

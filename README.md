@@ -76,3 +76,6 @@ Mobile:
 - iOS
 
 See `/Users/coltonspurgin/Developer/congruity/docs/ALPHA_RELEASE.md` for commands, init steps, and toolchain prerequisites.
+
+Security:
+- `/Users/coltonspurgin/Developer/congruity/docs/ALPHA_SECURITY_AUDIT.md`
