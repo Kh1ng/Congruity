@@ -1,0 +1,218 @@
+import React, { useEffect, useMemo, useRef } from "react";
+import {
+  Headphones,
+  Mic,
+  MicOff,
+  MonitorUp,
+  PhoneOff,
+  Settings,
+  Video,
+  VideoOff,
+} from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+
+function StreamPreview({ stream }) {
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    if (!videoRef.current) return;
+    if (stream && stream.getVideoTracks().length) {
+      videoRef.current.srcObject = stream;
+    } else {
+      videoRef.current.srcObject = null;
+    }
+  }, [stream]);
+
+  if (!stream || !stream.getVideoTracks().length) return null;
+
+  return (
+    <video
+      ref={videoRef}
+      autoPlay
+      playsInline
+      muted
+      className="h-20 w-32 rounded object-contain bg-black"
+    />
+  );
+}
+
+function VoiceDock({ channel, voice, memberMap, embedded = false }) {
+  if (!channel) return null;
+
+  const { user } = useAuth();
+
+  const {
+    isConnected,
+    isMuted,
+    isVideoOff,
+    isScreenSharing,
+    toggleMute,
+    toggleVideo,
+    startScreenShare,
+    stopScreenShare,
+    endCall,
+    roomUsers,
+    remoteStreams,
+    localStream,
+    stageStreamIds,
+    setStageStreamIds,
+  } = voice;
+
+  const remoteStreamMap = useMemo(() => new Map(remoteStreams || []), [remoteStreams]);
+
+  const participants = useMemo(() => {
+    const entries = [];
+    const localProfile = memberMap?.[user?.id]?.profile || {};
+    const localName =
+      localProfile.display_name || localProfile.username || user?.email || "You";
+    entries.push({
+      id: "local",
+      name: localName,
+      initials: localName.slice(0, 2).toUpperCase(),
+      isLocal: true,
+      stream: localStream,
+    });
+
+    (roomUsers || []).forEach((entry) => {
+      const socketId = entry?.socketId || entry;
+      const userId = entry?.userId;
+      const profile = userId ? memberMap?.[userId]?.profile || {} : {};
+      const name = profile.display_name || profile.username || userId || socketId;
+      entries.push({
+        id: socketId,
+        name,
+        initials: String(name || "?").slice(0, 2).toUpperCase(),
+        stream: remoteStreamMap.get(socketId),
+      });
+    });
+
+    return entries;
+  }, [roomUsers, memberMap, user, remoteStreamMap, localStream]);
+
+  const toggleStage = (id) => {
+    setStageStreamIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  return (
+    <div
+      className={
+        embedded
+          ? "rounded border border-slate-800 bg-slate-950/80 p-3"
+          : "fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-6xl bg-slate-950/80 border border-slate-800 rounded p-2 z-40 shadow-lg"
+      }
+    >
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-xs text-slate-400">Voice</div>
+          <div className="text-sm font-semibold">
+            {isConnected ? "Connected" : "Not connected"} • #{channel.name}
+          </div>
+          <div className="text-xs text-slate-500">In room: {roomUsers?.length || 0}</div>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={toggleMute}
+            className="inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium hover:text-gruvbox-orange"
+            disabled={!isConnected}
+            title={isMuted ? "Unmute" : "Mute"}
+          >
+            {isMuted ? <MicOff size={14} /> : <Mic size={14} />}
+          </button>
+          <button
+            onClick={toggleVideo}
+            className="inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium hover:text-gruvbox-orange"
+            disabled={!isConnected}
+            title={isVideoOff ? "Camera On" : "Camera Off"}
+          >
+            {isVideoOff ? <Video size={14} /> : <VideoOff size={14} />}
+          </button>
+          <button
+            onClick={isScreenSharing ? stopScreenShare : startScreenShare}
+            className="inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium hover:text-gruvbox-orange"
+            disabled={!isConnected}
+            title={isScreenSharing ? "Stop Share" : "Share Screen"}
+          >
+            <MonitorUp size={14} />
+          </button>
+          <button
+            onClick={endCall}
+            className="inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium hover:text-gruvbox-orange"
+            disabled={!isConnected}
+            title="Leave"
+          >
+            <PhoneOff size={14} />
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between rounded border border-slate-800 bg-slate-950/70 px-3 py-2">
+        <div className="flex items-center gap-2">
+          <div className="h-9 w-9 rounded-full bg-slate-900/80 border border-slate-700 flex items-center justify-center text-xs font-semibold text-slate-200">
+            {participants[0]?.initials || "ME"}
+          </div>
+          <div className="text-xs">
+            <div className="text-slate-100 font-semibold">{participants[0]?.name || "You"}</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="inline-flex items-center justify-center rounded bg-slate-900/60 px-2.5 py-1 text-xs hover:text-gruvbox-orange"
+            title={isMuted ? "Unmute" : "Mute"}
+            onClick={toggleMute}
+            disabled={!isConnected}
+          >
+            {isMuted ? <MicOff size={14} /> : <Mic size={14} />}
+          </button>
+          <button
+            type="button"
+            className="inline-flex items-center justify-center rounded bg-slate-900/60 px-2.5 py-1 text-xs hover:text-gruvbox-orange"
+            title="Deafen"
+            onClick={() => {}}
+          >
+            <Headphones size={14} />
+          </button>
+          <button
+            type="button"
+            className="inline-flex items-center justify-center rounded bg-slate-900/60 px-2.5 py-1 text-xs hover:text-gruvbox-orange"
+            title="Voice settings"
+            onClick={() => {}}
+          >
+            <Settings size={14} />
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-400">
+        {participants.map((participant) => (
+          <div key={participant.id} className="relative group">
+            <button
+              type="button"
+              className="h-8 w-8 rounded-full border border-slate-700 bg-slate-900/70 text-[0.65rem] font-semibold"
+              title={participant.name}
+              onClick={() => participant.stream && toggleStage(participant.id)}
+            >
+              {participant.initials}
+            </button>
+            {participant.stream && (
+              <div className="absolute bottom-10 left-1/2 z-50 hidden -translate-x-1/2 rounded border border-slate-800 bg-slate-950/90 p-2 text-[0.65rem] text-slate-300 group-hover:block">
+                <div className="mb-1">{participant.name}</div>
+                <StreamPreview stream={participant.stream} />
+                <button
+                  className="mt-2 w-full rounded border border-slate-700 px-2 py-1 hover:text-gruvbox-orange"
+                  onClick={() => toggleStage(participant.id)}
+                >
+                  {stageStreamIds.includes(participant.id) ? "Remove" : "Add"}
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default VoiceDock;

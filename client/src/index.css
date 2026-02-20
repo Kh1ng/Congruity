@@ -1,0 +1,121 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+  }
+}
+
+@layer components {
+}
+
+:root,
+:root[data-theme="gruvbox"] {
+  --color-bg: #282828;
+  --color-surface: #3c3836;
+  --color-surface-alt: #1d2021;
+  --color-text: #ebdbb2;
+  --color-text-muted: #928374;
+  --color-border: #665c54;
+  --color-accent: #fe8019;
+  --color-accent-contrast: #282828;
+  --color-accent-2: #fabd2f;
+  --color-danger: #fb4934;
+  --color-success: #b8bb26;
+}
+
+:root[data-theme="dark"] {
+  --color-bg: #0f172a;
+  --color-surface: #111827;
+  --color-surface-alt: #1f2937;
+  --color-text: #f8fafc;
+  --color-text-muted: #94a3b8;
+  --color-border: #334155;
+  --color-accent: #3b82f6;
+  --color-accent-contrast: #0f172a;
+  --color-accent-2: #22c55e;
+  --color-danger: #ef4444;
+  --color-success: #22c55e;
+}
+
+:root[data-theme="light"] {
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f1f5f9;
+  --color-text: #0f172a;
+  --color-text-muted: #475569;
+  --color-border: #e2e8f0;
+  --color-accent: #2563eb;
+  --color-accent-contrast: #ffffff;
+  --color-accent-2: #f59e0b;
+  --color-danger: #dc2626;
+  --color-success: #16a34a;
+}
+
+:root[data-theme="tokyo-night"] {
+  --color-bg: #0a0047;
+  --color-surface: #000000;
+  --color-surface-alt: #0f0a5c;
+  --color-text: #e6e6ff;
+  --color-text-muted: #b6b6d9;
+  --color-border: #2b1f7a;
+  --color-accent: #00ffd2;
+  --color-accent-contrast: #000000;
+  --color-accent-2: #ff4499;
+  --color-danger: #ff92a1;
+  --color-success: #2ecc71;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: "Inter", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+a {
+  color: var(--color-accent);
+}
+
+button {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+}
+
+button:hover {
+  background-color: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 0.5rem;
+  font-size: 1rem;
+  width: 100%;
+}
+
+.theme-control {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+textarea:focus,
+.theme-control:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 5px var(--color-accent);
+}
