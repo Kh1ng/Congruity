@@ -4,9 +4,13 @@ import { useAuth } from "@/hooks/useAuth";
 
 const DEFAULT_SIGNALING_URL =
   typeof window !== "undefined"
-    ? `${window.location.protocol === "https:" ? "wss" : "ws"}://${
-        window.location.hostname
-      }:3001`
+    ? `${
+        window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+          ? "ws"
+          : window.location.protocol === "https:"
+            ? "wss"
+            : "ws"
+      }://${window.location.hostname}:3001`
     : "ws://localhost:3001";
 const SIGNALING_URL = import.meta.env.VITE_SIGNALING_URL || DEFAULT_SIGNALING_URL;
 

@@ -23,7 +23,15 @@ export function useServerBackend(serverId) {
         .eq("server_id", serverId)
         .maybeSingle();
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        // Cloud projects without the self-host migration return 404 for this table.
+        if (fetchError.code === "PGRST205" || String(fetchError.message || "").includes("404")) {
+          setBackend(null);
+          setError(null);
+          return;
+        }
+        throw fetchError;
+      }
       setBackend(data || null);
       setError(null);
     } catch (err) {
