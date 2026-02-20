@@ -98,6 +98,8 @@ export function useWebRTC(roomId, options = {}) {
   const peerMetaRef = useRef(new Map());
   const pendingCandidatesRef = useRef(new Map());
   const joinedRoomIdRef = useRef(null);
+  const roomIdRef = useRef(roomId);
+  const userIdRef = useRef(user?.id);
   const localStreamRef = useRef(null);
   const remoteStreamsRef = useRef(new Map());
   const audioContextRef = useRef(null);
@@ -105,6 +107,14 @@ export function useWebRTC(roomId, options = {}) {
   const audioMonitorsRef = useRef(new Map());
   const audioAnimationFrameRef = useRef(null);
   const endCallRef = useRef(null);
+
+  useEffect(() => {
+    roomIdRef.current = roomId;
+  }, [roomId]);
+
+  useEffect(() => {
+    userIdRef.current = user?.id;
+  }, [user?.id]);
 
   const ensureAudioContext = useCallback(async () => {
     if (!audioEnabledRef.current) return null;
@@ -257,12 +267,17 @@ export function useWebRTC(roomId, options = {}) {
         if (meta) meta.makingOffer = true;
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-        socket.emit("offer", { offer, to: userId, roomId, from: socket.id });
+        socket.emit("offer", {
+          offer,
+          to: userId,
+          roomId: roomIdRef.current,
+          from: socket.id,
+        });
       } finally {
         if (meta) meta.makingOffer = false;
       }
     }
-  }, [roomId]);
+  }, []);
 
   /**
    * Create a peer connection for a remote user
@@ -296,7 +311,7 @@ export function useWebRTC(roomId, options = {}) {
           socketRef.current.emit("ice-candidate", {
             candidate: event.candidate,
             to: userId,
-            roomId,
+            roomId: roomIdRef.current,
             from: socketRef.current.id,
           });
         }
@@ -349,7 +364,7 @@ export function useWebRTC(roomId, options = {}) {
           socketRef.current.emit("offer", {
             offer,
             to: userId,
-            roomId,
+            roomId: roomIdRef.current,
             from: socketRef.current.id,
           });
         } finally {
@@ -359,7 +374,7 @@ export function useWebRTC(roomId, options = {}) {
 
       return pc;
     },
-    [roomId, monitorStreamAudio, cleanupAudioMonitor]
+    [monitorStreamAudio, cleanupAudioMonitor]
   );
 
   /**
@@ -401,9 +416,11 @@ export function useWebRTC(roomId, options = {}) {
       console.log("Connected to signaling server");
       localSocketIdRef.current = socket.id;
       setLocalSocketId(socket.id);
-      if (roomId) {
-        socket.emit("join-room", { roomId, userId: user?.id });
-        joinedRoomIdRef.current = roomId;
+      setIsConnected(Boolean(localStreamRef.current));
+      const currentRoomId = roomIdRef.current;
+      if (currentRoomId) {
+        socket.emit("join-room", { roomId: currentRoomId, userId: userIdRef.current });
+        joinedRoomIdRef.current = currentRoomId;
       }
       playCue("connected");
     });
@@ -456,7 +473,12 @@ export function useWebRTC(roomId, options = {}) {
 
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      socket.emit("answer", { answer, to: from, roomId, from: socket.id });
+      socket.emit("answer", {
+        answer,
+        to: from,
+        roomId: roomIdRef.current,
+        from: socket.id,
+      });
     });
 
     socket.on("answer", async ({ answer, from }) => {
@@ -513,7 +535,7 @@ export function useWebRTC(roomId, options = {}) {
 
     socketRef.current = socket;
     return socket;
-  }, [roomId, user?.id, createPeerConnection, removePeerConnection, playCue, signalingUrl]);
+  }, [createPeerConnection, removePeerConnection, playCue, signalingUrl]);
 
   /**
    * Start a call with media
