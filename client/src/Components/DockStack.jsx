@@ -1,4 +1,3 @@
-/* eslint-disable react/jsx-props-no-spreading */
 import React, { useEffect, useMemo, useState } from "react";
 import { GripVertical } from "lucide-react";
 import {
@@ -31,7 +30,6 @@ function DockPanel({ id, title, children }) {
     <div ref={setNodeRef} style={style} className="h-full flex flex-col">
       <div className="flex items-center justify-between gap-2 rounded-md border border-slate-800 bg-slate-950/70 px-2 py-0.5 text-[0.65rem] uppercase tracking-wide text-slate-400">
         <span>{title}</span>
-        {/* eslint-disable-next-line react/jsx-props-no-spreading */}
         <button
           type="button"
           className="cursor-grab text-slate-500 hover:text-gruvbox-orange"

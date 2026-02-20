@@ -5,7 +5,8 @@ function Account({ session }) {
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState(null);
   const [website, setWebsite] = useState(null);
-  const [avatar_url, setAvatarUrl] = useState(null);
+  // TODO: Display avatar in UI - part of UI improvements
+  const [avatar_url, setAvatarUrl] = useState(null); // eslint-disable-line no-unused-vars
 
   useEffect(() => {
     let ignore = false;

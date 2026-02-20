@@ -37,8 +37,6 @@ function StreamPreview({ stream }) {
 }
 
 function VoiceDock({ channel, voice, memberMap, embedded = false }) {
-  if (!channel) return null;
-
   const { user } = useAuth();
 
   const {
@@ -56,7 +54,7 @@ function VoiceDock({ channel, voice, memberMap, embedded = false }) {
     localStream,
     stageStreamIds,
     setStageStreamIds,
-  } = voice;
+  } = voice || {};
 
   const remoteStreamMap = useMemo(() => new Map(remoteStreams || []), [remoteStreams]);
 
@@ -88,6 +86,8 @@ function VoiceDock({ channel, voice, memberMap, embedded = false }) {
 
     return entries;
   }, [roomUsers, memberMap, user, remoteStreamMap, localStream]);
+
+  if (!channel) return null;
 
   const toggleStage = (id) => {
     setStageStreamIds((prev) =>

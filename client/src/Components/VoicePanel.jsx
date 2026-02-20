@@ -38,10 +38,6 @@ function ParticipantMedia({ stream, isLocal }) {
 function VoicePanel({ channel, voice, memberMap }) {
   const { user } = useAuth();
 
-  if (!channel) {
-    return <div className="text-slate-400">Select a voice channel to join.</div>;
-  }
-
   const {
     isConnected,
     localStream,
@@ -57,7 +53,7 @@ function VoicePanel({ channel, voice, memberMap }) {
     startScreenShare,
     stopScreenShare,
     roomUsers,
-  } = voice;
+  } = voice || {};
 
   const remoteStreamMap = useMemo(() => new Map(remoteStreams || []), [remoteStreams]);
 
@@ -99,6 +95,10 @@ function VoicePanel({ channel, voice, memberMap }) {
       ),
     [participants]
   );
+
+  if (!channel) {
+    return <div className="text-slate-400">Select a voice channel to join.</div>;
+  }
 
   const showVideoStage = videoParticipants.length > 0;
 

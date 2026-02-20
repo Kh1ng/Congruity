@@ -1,4 +1,5 @@
 module.exports = {
+  root: true,
   env: {
     browser: true,
     es2021: true,
@@ -7,27 +8,45 @@ module.exports = {
   extends: [
     "eslint:recommended",
     "plugin:react/recommended",
-    "plugin:jsx-a11y/recommended",
-    "plugin:import/errors",
-    "plugin:import/warnings",
-    "plugin:import/typescript",
-    "airbnb",
-    "prettier",
+    "plugin:react-hooks/recommended",
   ],
   parserOptions: {
+    ecmaVersion: "latest",
+    sourceType: "module",
     ecmaFeatures: {
       jsx: true,
     },
-    ecmaVersion: 12,
-    sourceType: "module",
   },
-  plugins: ["react", "react-hooks", "jsx-a11y", "import", "prettier"],
+  settings: {
+    react: {
+      version: "detect",
+    },
+  },
+  plugins: ["react", "react-hooks"],
   rules: {
-    "prettier/prettier": ["error"],
-    "react/jsx-filename-extension": [1, { extensions: [".jsx", ".js"] }],
-    "import/prefer-default-export": "off",
+    // React 17+ JSX transform - no need to import React
     "react/react-in-jsx-scope": "off",
     "react/prop-types": "off",
-    "react/button-has-type": "warn",
+    "react/jsx-key": "error",
+    "react/no-unescaped-entities": "warn",
+
+    // Hooks
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "warn",
+
+    // General
+    "no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_", destructuredArrayIgnorePattern: "^_" }],
+    "no-console": ["warn", { allow: ["warn", "error", "info", "debug"] }],
+    "prefer-const": "error",
+    "no-var": "error",
+    eqeqeq: ["error", "always", { null: "ignore" }],
   },
+  ignorePatterns: [
+    "node_modules/",
+    "dist/",
+    "build/",
+    "src-tauri/",
+    "*.config.js",
+    "*.config.cjs",
+  ],
 };
