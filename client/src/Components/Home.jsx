@@ -90,6 +90,7 @@ function Home() {
       content: (
         <ChannelList
           serverId={selectedServer?.id}
+          signalingUrl={serverBackend?.signaling_url}
           selectedChannelId={selectedChannel?.id}
           memberMap={memberMap}
           roomUsers={voiceSession.roomUsers}
@@ -134,6 +135,7 @@ function Home() {
     memberMap,
     selectedChannel?.id,
     selectedServer?.id,
+    serverBackend?.signaling_url,
     voiceSession,
   ]);
 

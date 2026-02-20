@@ -279,6 +279,16 @@ export function useWebRTC(roomId, options = {}) {
     }
   }, []);
 
+  const clearOutgoingVideo = useCallback(async () => {
+    peerConnectionsRef.current.forEach((pc) => {
+      const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+      if (sender) {
+        sender.replaceTrack(null);
+      }
+    });
+    await renegotiateAll();
+  }, [renegotiateAll]);
+
   /**
    * Create a peer connection for a remote user
    */
@@ -635,7 +645,17 @@ export function useWebRTC(roomId, options = {}) {
 
       // Handle screen share stop
       videoTrack.onended = () => {
+        if (localStreamRef.current?.getVideoTracks().includes(videoTrack)) {
+          localStreamRef.current.removeTrack(videoTrack);
+        }
+        setLocalStream(
+          localStreamRef.current
+            ? new MediaStream(localStreamRef.current.getTracks())
+            : null
+        );
+        setIsVideoOff(true);
         setIsScreenSharing(false);
+        clearOutgoingVideo();
       };
 
       setIsScreenSharing(true);
@@ -655,7 +675,7 @@ export function useWebRTC(roomId, options = {}) {
       console.error("Error starting screen share:", err);
       setError(err.message);
     }
-  }, [monitorStreamAudio, renegotiateAll, screenConstraints]);
+  }, [monitorStreamAudio, renegotiateAll, screenConstraints, clearOutgoingVideo]);
 
   /**
    * Stop screen sharing and return to camera
@@ -829,6 +849,41 @@ export function useWebRTC(roomId, options = {}) {
   useEffect(() => {
     endCallRef.current = endCall;
   }, [endCall]);
+
+  useEffect(() => {
+    const stream = localStreamRef.current;
+    if (!stream) return undefined;
+
+    const videoTracks = stream.getVideoTracks();
+    if (!videoTracks.length) return undefined;
+
+    const handleVideoEnded = (endedTrack) => {
+      if (!localStreamRef.current) return;
+      if (localStreamRef.current.getVideoTracks().includes(endedTrack)) {
+        localStreamRef.current.removeTrack(endedTrack);
+      }
+      setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
+      setIsVideoOff(true);
+      setIsScreenSharing(false);
+      clearOutgoingVideo();
+    };
+
+    const handlers = new Map();
+    videoTracks.forEach((track) => {
+      const handler = () => handleVideoEnded(track);
+      handlers.set(track, handler);
+      track.addEventListener("ended", handler);
+    });
+
+    return () => {
+      videoTracks.forEach((track) => {
+        const handler = handlers.get(track);
+        if (handler) {
+          track.removeEventListener("ended", handler);
+        }
+      });
+    };
+  }, [localStream, clearOutgoingVideo]);
 
   useEffect(() => {
     const socket = socketRef.current;

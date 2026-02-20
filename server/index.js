@@ -13,6 +13,16 @@ const path = require("path");
 const { Server } = require("socket.io");
 
 const app = express();
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") {
+    res.sendStatus(204);
+    return;
+  }
+  next();
+});
 
 const corsOrigins = (process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : [])
   .map((origin) => origin.trim())
@@ -98,6 +108,18 @@ app.get("/health", (req, res) => {
 
 app.get("/", (req, res) => {
   res.send("Congruity Signaling Server");
+});
+
+app.get("/rooms", (req, res) => {
+  const roomsSnapshot = Array.from(rooms.entries()).map(([roomId, users]) => ({
+    roomId,
+    users: Array.from(users.entries()).map(([socketId, userId]) => ({
+      socketId,
+      userId,
+    })),
+  }));
+
+  res.status(200).json({ rooms: roomsSnapshot });
 });
 
 io.on("connection", (socket) => {
