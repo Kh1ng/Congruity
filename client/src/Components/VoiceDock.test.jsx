@@ -61,5 +61,6 @@ describe("VoiceDock", () => {
 
     expect(container.firstChild).toHaveClass("border-theme", "bg-theme-surface-alt/70");
     expect(screen.getAllByTitle(/mute|unmute/i)).toHaveLength(1);
+    expect(screen.queryByText(/^Voice$/i)).not.toBeInTheDocument();
   });
 });

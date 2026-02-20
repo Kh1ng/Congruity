@@ -32,9 +32,9 @@ describe("ThemeSelector", () => {
     expect(screen.getByLabelText(/theme/i)).toBeInTheDocument();
     expect(screen.getByRole("combobox")).toBeInTheDocument();
 
-    // Should have all 4 theme options
+    // Should have all preset and custom theme options
     const options = screen.getAllByRole("option");
-    expect(options).toHaveLength(4);
+    expect(options).toHaveLength(6);
   });
 
   it("shows current theme as selected", () => {
@@ -61,5 +61,7 @@ describe("ThemeSelector", () => {
     expect(screen.getByText("Light")).toBeInTheDocument();
     expect(screen.getByText("Gruvbox")).toBeInTheDocument();
     expect(screen.getByText("Tokyo Night")).toBeInTheDocument();
+    expect(screen.getByText("Monokai")).toBeInTheDocument();
+    expect(screen.getByText("Custom")).toBeInTheDocument();
   });
 });

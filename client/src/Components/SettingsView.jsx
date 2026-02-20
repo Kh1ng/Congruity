@@ -95,19 +95,96 @@ function SettingsView({
 
   return (
     <div className="space-y-6">
-      <section className="rounded border border-slate-800 bg-slate-950/40 p-4">
-        <h3 className="text-sm font-semibold text-slate-300">
-          Profile & Theme
+      <section className="rounded border border-theme bg-theme-surface-alt/40 p-4">
+        <h3 className="text-sm font-semibold text-theme">
+          Profile, Theme & Layout
         </h3>
-        <p className="mt-1 text-xs text-slate-500">
-          Update your profile details and appearance presets.
+        <p className="mt-1 text-xs text-theme-muted">
+          Update your profile, colors, and dock layout in one place.
         </p>
         <AccountSettings serverId={serverId} />
+        <div className="mt-4 border-t border-theme pt-4">
+          <h4 className="text-sm font-semibold text-theme">Layout Presets</h4>
+          <p className="mt-1 text-xs text-theme-muted">
+            Choose how docks are arranged in the workspace.
+          </p>
+          <div className="mt-4 grid gap-2">
+            {presetKeys.map((key) => {
+              const preset = PRESETS[key];
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => applyPreset(key)}
+                  className="flex w-full items-center justify-between rounded border border-theme bg-theme-surface px-3 py-2 text-left text-xs text-theme-muted transition hover:border-theme-accent hover:text-theme-accent"
+                >
+                  <div>
+                    <div className="text-sm font-semibold">{preset.label}</div>
+                    <div className="text-[0.65rem] text-theme-muted">
+                      {preset.description}
+                    </div>
+                  </div>
+                  <span className="text-[0.6rem] uppercase tracking-wide text-theme-muted">
+                    Apply
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-4 space-y-2 text-xs text-theme-muted">
+            <button
+              type="button"
+              onClick={toggleLayoutLock}
+              className="w-full rounded border border-theme bg-theme-surface px-3 py-2 text-left text-xs text-theme-muted transition hover:border-theme-accent hover:text-theme-accent"
+            >
+              {effectivePrefs.layoutLocked ? "Edit layout" : "Lock layout"}
+            </button>
+            <label
+              htmlFor="collapse-servers"
+              className="flex items-center justify-between rounded border border-theme bg-theme-surface px-3 py-2"
+            >
+              <span>Collapse server list</span>
+              <input
+                id="collapse-servers"
+                type="checkbox"
+                checked={effectivePrefs.collapseServers}
+                onChange={updatePref("collapseServers")}
+                className="h-4 w-4"
+              />
+            </label>
+            <label
+              htmlFor="collapse-channels"
+              className="flex items-center justify-between rounded border border-theme bg-theme-surface px-3 py-2"
+            >
+              <span>Collapse channels</span>
+              <input
+                id="collapse-channels"
+                type="checkbox"
+                checked={effectivePrefs.collapseChannels}
+                onChange={updatePref("collapseChannels")}
+                className="h-4 w-4"
+              />
+            </label>
+            <label
+              htmlFor="collapse-settings"
+              className="flex items-center justify-between rounded border border-theme bg-theme-surface px-3 py-2"
+            >
+              <span>Collapse settings dock</span>
+              <input
+                id="collapse-settings"
+                type="checkbox"
+                checked={effectivePrefs.collapseSocial}
+                onChange={updatePref("collapseSocial")}
+                className="h-4 w-4"
+              />
+            </label>
+          </div>
+        </div>
       </section>
 
-      <section className="rounded border border-slate-800 bg-slate-950/40 p-4">
-        <h3 className="text-sm font-semibold text-slate-300">Voice & Video</h3>
-        <p className="mt-1 text-xs text-slate-500">
+      <section className="rounded border border-theme bg-theme-surface-alt/40 p-4">
+        <h3 className="text-sm font-semibold text-theme">Voice & Video</h3>
+        <p className="mt-1 text-xs text-theme-muted">
           Quick controls for your active voice channel.
         </p>
         {voiceChannel ? (
@@ -120,131 +197,53 @@ function SettingsView({
             />
           </div>
         ) : (
-          <div className="mt-3 text-xs text-slate-400">
+          <div className="mt-3 text-xs text-theme-muted">
             Join a voice channel to see controls.
           </div>
         )}
       </section>
 
-      <section className="rounded border border-slate-800 bg-slate-950/40 p-4">
-        <h3 className="text-sm font-semibold text-slate-300">
+      <section className="rounded border border-theme bg-theme-surface-alt/40 p-4">
+        <h3 className="text-sm font-semibold text-theme">
           Server Settings
         </h3>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-theme-muted">
           Manage server configuration for the selected workspace.
         </p>
-        <div className="mt-4 space-y-3 text-xs text-slate-300">
+        <div className="mt-4 space-y-3 text-xs text-theme-muted">
           <div>
-            <div className="text-[0.65rem] uppercase tracking-wide text-slate-500">
+            <div className="text-[0.65rem] uppercase tracking-wide text-theme-muted">
               Server Name
             </div>
             <input
               type="text"
               value={server?.name || "No server selected"}
               disabled
-              className="mt-1 w-full rounded border border-slate-800 bg-slate-900/60 px-3 py-2 text-sm text-slate-300"
+              className="mt-1 w-full rounded border border-theme bg-theme-surface px-3 py-2 text-sm text-theme-muted"
             />
           </div>
           <div>
-            <div className="text-[0.65rem] uppercase tracking-wide text-slate-500">
+            <div className="text-[0.65rem] uppercase tracking-wide text-theme-muted">
               Region
             </div>
             <input
               type="text"
               value={server?.region || "Auto (coming soon)"}
               disabled
-              className="mt-1 w-full rounded border border-slate-800 bg-slate-900/60 px-3 py-2 text-sm text-slate-300"
+              className="mt-1 w-full rounded border border-theme bg-theme-surface px-3 py-2 text-sm text-theme-muted"
             />
           </div>
           <div>
-            <div className="text-[0.65rem] uppercase tracking-wide text-slate-500">
+            <div className="text-[0.65rem] uppercase tracking-wide text-theme-muted">
               Visibility
             </div>
-            <div className="mt-2 flex items-center gap-2 text-xs text-slate-400">
-              <span className="rounded border border-slate-800 px-2 py-1">
+            <div className="mt-2 flex items-center gap-2 text-xs text-theme-muted">
+              <span className="rounded border border-theme px-2 py-1">
                 {server ? "Private" : "Select a server"}
               </span>
               <span>Server moderation controls will appear here.</span>
             </div>
           </div>
-        </div>
-      </section>
-
-      <section className="rounded border border-slate-800 bg-slate-950/40 p-4">
-        <h3 className="text-sm font-semibold text-slate-300">Layout Presets</h3>
-        <p className="mt-1 text-xs text-slate-500">
-          Choose how docks are arranged in the workspace.
-        </p>
-        <div className="mt-4 grid gap-2">
-          {presetKeys.map((key) => {
-            const preset = PRESETS[key];
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => applyPreset(key)}
-                className="flex w-full items-center justify-between rounded border border-slate-800 bg-slate-900/60 px-3 py-2 text-left text-xs text-slate-300 hover:border-gruvbox-orange"
-              >
-                <div>
-                  <div className="text-sm font-semibold">{preset.label}</div>
-                  <div className="text-[0.65rem] text-slate-500">
-                    {preset.description}
-                  </div>
-                </div>
-                <span className="text-[0.6rem] uppercase tracking-wide text-slate-500">
-                  Apply
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        <div className="mt-4 space-y-2 text-xs text-slate-300">
-          <button
-            type="button"
-            onClick={toggleLayoutLock}
-            className="w-full rounded border border-slate-800 bg-slate-900/60 px-3 py-2 text-left text-xs text-slate-300 hover:border-gruvbox-orange"
-          >
-            {effectivePrefs.layoutLocked ? "Edit layout" : "Lock layout"}
-          </button>
-          <label
-            htmlFor="collapse-servers"
-            className="flex items-center justify-between rounded border border-slate-800 bg-slate-900/50 px-3 py-2"
-          >
-            <span>Collapse server list</span>
-            <input
-              id="collapse-servers"
-              type="checkbox"
-              checked={effectivePrefs.collapseServers}
-              onChange={updatePref("collapseServers")}
-              className="h-4 w-4"
-            />
-          </label>
-          <label
-            htmlFor="collapse-channels"
-            className="flex items-center justify-between rounded border border-slate-800 bg-slate-900/50 px-3 py-2"
-          >
-            <span>Collapse channels</span>
-            <input
-              id="collapse-channels"
-              type="checkbox"
-              checked={effectivePrefs.collapseChannels}
-              onChange={updatePref("collapseChannels")}
-              className="h-4 w-4"
-            />
-          </label>
-          <label
-            htmlFor="collapse-settings"
-            className="flex items-center justify-between rounded border border-slate-800 bg-slate-900/50 px-3 py-2"
-          >
-            <span>Collapse settings dock</span>
-            <input
-              id="collapse-settings"
-              type="checkbox"
-              checked={effectivePrefs.collapseSocial}
-              onChange={updatePref("collapseSocial")}
-              className="h-4 w-4"
-            />
-          </label>
         </div>
       </section>
     </div>

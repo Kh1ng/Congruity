@@ -3,6 +3,17 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 
+const CUSTOM_THEME_FIELDS = [
+  { key: "bg", label: "Background" },
+  { key: "surface", label: "Surface" },
+  { key: "surface-alt", label: "Surface Alt" },
+  { key: "text", label: "Text" },
+  { key: "text-muted", label: "Text Muted" },
+  { key: "border", label: "Border" },
+  { key: "accent", label: "Accent" },
+  { key: "accent-2", label: "Accent 2" },
+];
+
 function AccountSettings({ serverId }) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -12,7 +23,8 @@ function AccountSettings({ serverId }) {
   const [nickname, setNickname] = useState("");
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const { theme, setTheme, options: themeOptions } = useTheme();
+  const { theme, setTheme, options: themeOptions, customPalette, setCustomColor, resetCustomPalette } =
+    useTheme();
 
   useEffect(() => {
     const load = async () => {
@@ -62,14 +74,18 @@ function AccountSettings({ serverId }) {
 
     const { error: profileError } = await supabase
       .from("profiles")
-      .upsert({
-        id: user.id,
+      .update({
         username: username.trim(),
         display_name: displayName.trim(),
-      });
+      })
+      .eq("id", user.id);
 
     if (profileError) {
-      setError(profileError.message);
+      setError(
+        profileError.message.includes("row-level security")
+          ? "Profile update blocked by RLS policy. Theme changes are still saved locally."
+          : profileError.message
+      );
       setSaving(false);
       return;
     }
@@ -95,15 +111,56 @@ function AccountSettings({ serverId }) {
   if (!user) return null;
 
   return (
-    <div className="mt-6 border-t border-slate-800 pt-4">
-      <h3 className="text-sm font-semibold text-slate-300 mb-2">Account</h3>
+    <div className="mt-6 border-t border-theme pt-4">
+      <h3 className="mb-2 text-sm font-semibold text-theme">Account</h3>
+      <div className="mb-3 rounded border border-theme bg-theme-surface-alt/40 p-3">
+        <label className="text-xs font-semibold text-theme-muted">Theme preset</label>
+        <select
+          value={theme}
+          onChange={(e) => setTheme(e.target.value)}
+          className="theme-control mt-1 w-full rounded px-3 py-2 text-sm"
+        >
+          {themeOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <div className="mt-1 text-xs text-theme-muted">
+          Applies instantly and saves to this device.
+        </div>
+        {theme === "custom" && (
+          <div className="mt-3 space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              {CUSTOM_THEME_FIELDS.map((field) => (
+                <label key={field.key} className="text-xs text-theme-muted">
+                  <span>{field.label}</span>
+                  <input
+                    type="color"
+                    value={customPalette[field.key]}
+                    onChange={(e) => setCustomColor(field.key, e.target.value)}
+                    className="mt-1 h-8 w-full cursor-pointer rounded border border-theme bg-theme-surface"
+                  />
+                </label>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="text-xs text-theme-muted transition hover:text-theme-accent"
+              onClick={resetCustomPalette}
+            >
+              Reset custom palette
+            </button>
+          </div>
+        )}
+      </div>
       <form onSubmit={handleSave} className="space-y-2">
         <input
           type="text"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           placeholder="Username (login & friends)"
-          className="w-full bg-slate-900/70 border border-slate-700 rounded px-3 py-2 text-slate-100 text-sm"
+          className="w-full rounded border border-theme bg-theme-surface-alt px-3 py-2 text-sm text-theme"
           required
         />
         <input
@@ -111,7 +168,7 @@ function AccountSettings({ serverId }) {
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
           placeholder="Display name"
-          className="w-full bg-slate-900/70 border border-slate-700 rounded px-3 py-2 text-slate-100 text-sm"
+          className="w-full rounded border border-theme bg-theme-surface-alt px-3 py-2 text-sm text-theme"
         />
         {serverId && (
           <input
@@ -119,34 +176,15 @@ function AccountSettings({ serverId }) {
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
             placeholder="Server nickname"
-            className="w-full bg-slate-900/70 border border-slate-700 rounded px-3 py-2 text-slate-100 text-sm"
+            className="w-full rounded border border-theme bg-theme-surface-alt px-3 py-2 text-sm text-theme"
           />
         )}
-        <div className="pt-2">
-          <label className="text-xs font-semibold" style={{ color: "var(--color-text-muted)" }}>
-            Theme preset
-          </label>
-          <select
-            value={theme}
-            onChange={(e) => setTheme(e.target.value)}
-            className="theme-control w-full rounded px-3 py-2 text-sm mt-1"
-          >
-            {themeOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <div className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
-            Applies instantly and saves to this device.
-          </div>
-        </div>
         <button
           type="submit"
-          className="w-full text-sm font-medium hover:text-gruvbox-orange"
+          className="w-full text-sm font-medium text-theme-muted transition hover:text-theme-accent"
           disabled={saving || loading}
         >
-          {saving ? "Saving..." : "Save"}
+          {saving ? "Saving..." : "Save profile"}
         </button>
         {error && <div className="text-xs text-red-400">{error}</div>}
         {success && <div className="text-xs text-green-400">{success}</div>}

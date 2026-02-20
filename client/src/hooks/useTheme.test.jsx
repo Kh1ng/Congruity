@@ -35,12 +35,14 @@ describe("useTheme", () => {
   it("provides theme options", () => {
     const { result } = renderHook(() => useTheme(), { wrapper });
 
-    expect(result.current.options).toHaveLength(4);
+    expect(result.current.options).toHaveLength(6);
     expect(result.current.options.map((o) => o.value)).toEqual([
       "dark",
       "light",
       "gruvbox",
       "tokyo-night",
+      "monokai",
+      "custom",
     ]);
   });
 
@@ -88,5 +90,18 @@ describe("useTheme", () => {
     const { result } = renderHook(() => useTheme(), { wrapper });
 
     expect(result.current.theme).toBe("gruvbox");
+  });
+
+  it("updates custom palette colors and persists custom theme", () => {
+    const { result } = renderHook(() => useTheme(), { wrapper });
+
+    act(() => {
+      result.current.setTheme("custom");
+      result.current.setCustomColor("accent", "#ff0000");
+    });
+
+    expect(result.current.theme).toBe("custom");
+    expect(result.current.customPalette.accent).toBe("#ff0000");
+    expect(document.documentElement.style.getPropertyValue("--color-accent")).toBe("#ff0000");
   });
 });

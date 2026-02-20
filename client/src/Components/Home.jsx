@@ -71,7 +71,7 @@ function Home() {
     leftDockWidth = "220px";
   }
 
-  const rightDockWidth = collapseSocial ? "80px" : "300px";
+  const rightDockWidth = collapseSocial ? "0px" : "300px";
 
   const layoutPreset = useMemo(
     () => ({
@@ -219,11 +219,11 @@ function Home() {
         <div className="flex items-center gap-3 text-xs text-theme-muted">
           <button
             type="button"
-            onClick={() => setCollapseSocial(false)}
+            onClick={() => setCollapseSocial((prev) => !prev)}
             className="inline-flex items-center gap-1.5 hover:text-theme-accent"
           >
             <Settings size={14} />
-            Settings
+            {collapseSocial ? "Settings" : "Close settings"}
           </button>
         </div>
       </div>
@@ -247,10 +247,10 @@ function Home() {
               </main>
             ),
             rightDock: (
-              <aside className="rounded border border-theme bg-theme-surface p-2 min-h-0 h-full">
-                {collapseSocial ? (
-                  <div className="text-xs text-theme-muted">Settings</div>
-                ) : (
+              <aside
+                className={`min-h-0 h-full ${collapseSocial ? "hidden" : "rounded border border-theme bg-theme-surface p-2"}`}
+              >
+                {!collapseSocial && (
                   <DockStack
                     dockId="right"
                     panels={rightPanels}

@@ -2,13 +2,23 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { io } from "socket.io-client";
 import { useAuth } from "@/hooks/useAuth";
 
-const SIGNALING_URL = "wss://100.123.69.75:3001";
 const DEFAULT_SIGNALING_URL =
   typeof window !== "undefined"
     ? `${window.location.protocol === "https:" ? "wss" : "ws"}://${
         window.location.hostname
       }:3001`
     : "ws://localhost:3001";
+const SIGNALING_URL = import.meta.env.VITE_SIGNALING_URL || DEFAULT_SIGNALING_URL;
+
+const isLocalHost = (host = "") => {
+  const normalized = host.toLowerCase();
+  return (
+    normalized === "localhost" ||
+    normalized === "127.0.0.1" ||
+    normalized === "::1" ||
+    normalized.endsWith(".localhost")
+  );
+};
 
 const TURN_URL = import.meta.env.VITE_TURN_URL;
 const TURN_USERNAME = import.meta.env.VITE_TURN_USERNAME;
@@ -388,9 +398,15 @@ export function useWebRTC(roomId) {
         await ensureAudioContext();
 
         // Get user media
-        if (!navigator?.mediaDevices?.getUserMedia) {
+        const hasGetUserMedia = !!navigator?.mediaDevices?.getUserMedia;
+        const runningOnTrustedOrigin =
+          window.isSecureContext ||
+          isLocalHost(window.location.hostname) ||
+          window.location.protocol === "tauri:";
+
+        if (!hasGetUserMedia || !runningOnTrustedOrigin) {
           throw new Error(
-            "Microphone access unavailable. Use HTTPS (or localhost) to enable getUserMedia."
+            "Microphone access unavailable in this runtime. For Tauri, run from localhost/HTTPS and enable native camera/mic permissions."
           );
         }
 

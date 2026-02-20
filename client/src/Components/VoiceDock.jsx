@@ -105,9 +105,6 @@ function VoiceDock({ channel, voice, memberMap, embedded = false }) {
     <div className={rootClasses}>
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-xs uppercase tracking-wide text-theme-muted">
-            Voice
-          </div>
           <div className="truncate text-sm font-semibold text-theme">
             {isConnected ? "Connected" : "Not connected"} • #{channel.name}
           </div>
@@ -170,33 +167,35 @@ function VoiceDock({ channel, voice, memberMap, embedded = false }) {
         </div>
       </div>
 
-      <div className="mt-2 flex flex-wrap gap-2 text-xs text-theme-muted">
-        {participants.map((participant) => (
-          <div key={participant.id} className="relative group">
-            <button
-              type="button"
-              className="h-8 w-8 rounded-full border border-theme bg-theme-surface text-[0.65rem] font-semibold text-theme-muted transition hover:border-theme-accent hover:text-theme-accent"
-              title={participant.name}
-              onClick={() => participant.stream && toggleStage(participant.id)}
-            >
-              {participant.initials}
-            </button>
-            {participant.stream && (
-              <div className="absolute bottom-10 left-1/2 z-50 hidden -translate-x-1/2 rounded-md border border-theme bg-theme-surface p-2 text-[0.65rem] text-theme-muted group-hover:block">
-                <div className="mb-1">{participant.name}</div>
-                <StreamPreview stream={participant.stream} />
-                <button
-                  type="button"
-                  className="mt-2 w-full rounded border border-theme bg-theme-surface-alt px-2 py-1 text-theme-muted transition hover:text-theme-accent"
-                  onClick={() => toggleStage(participant.id)}
-                >
-                  {stageStreamIds.includes(participant.id) ? "Remove" : "Add"}
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+      {participants.some((participant) => !participant.isLocal) && (
+        <div className="mt-2 flex flex-wrap gap-2 text-xs text-theme-muted">
+          {participants.filter((participant) => !participant.isLocal).map((participant) => (
+            <div key={participant.id} className="relative group">
+              <button
+                type="button"
+                className="h-8 w-8 rounded-full border border-theme bg-theme-surface text-[0.65rem] font-semibold text-theme-muted transition hover:border-theme-accent hover:text-theme-accent"
+                title={participant.name}
+                onClick={() => participant.stream && toggleStage(participant.id)}
+              >
+                {participant.initials}
+              </button>
+              {participant.stream && (
+                <div className="absolute bottom-10 left-1/2 z-50 hidden -translate-x-1/2 rounded-md border border-theme bg-theme-surface p-2 text-[0.65rem] text-theme-muted group-hover:block">
+                  <div className="mb-1">{participant.name}</div>
+                  <StreamPreview stream={participant.stream} />
+                  <button
+                    type="button"
+                    className="mt-2 w-full rounded border border-theme bg-theme-surface-alt px-2 py-1 text-theme-muted transition hover:text-theme-accent"
+                    onClick={() => toggleStage(participant.id)}
+                  >
+                    {stageStreamIds.includes(participant.id) ? "Remove" : "Add"}
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
