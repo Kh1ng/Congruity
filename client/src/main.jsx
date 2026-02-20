@@ -1,5 +1,4 @@
 import { Buffer } from "buffer";
-import process from "process";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
@@ -14,7 +13,6 @@ import { ThemeProvider } from "@/hooks/useTheme";
 // Polyfill global for browser
 window.global = window;
 window.Buffer = Buffer;
-window.process = process;
 
 const router = createBrowserRouter([
   {

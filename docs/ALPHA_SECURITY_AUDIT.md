@@ -45,6 +45,18 @@ Scope:
 8. Removed stale insecure middleware artifact
 - Removed unused JWT middleware file containing hardcoded-secret patterns and token logging.
 
+9. Reduced vulnerable polyfill dependency surface
+- Removed Node/browser polyfill packages not required by app code:
+  - `crypto-browserify`
+  - `stream-browserify`
+  - `process`
+  - `vite-plugin-node-polyfills`
+  - `esbuild-plugin-polyfill-node`
+  - `@esbuild-plugins/node-globals-polyfill`
+- Tightened Vite dev server exposure:
+  - `host` restricted to `127.0.0.1`
+  - `cors` disabled for dev server
+
 ## Remaining risks / follow-ups
 
 1. Dependency CVE scan not completed in this environment
@@ -63,3 +75,11 @@ Scope:
 4. Secrets hygiene for self-host mode
 - Do not use placeholder Supabase keys from setup defaults in internet-facing deployments.
 - Rotate MinIO root credentials and dashboard credentials before external testers.
+
+5. Remaining `npm audit` findings after non-breaking fixes
+- Remaining advisories are concentrated in dev-tooling transitive chains (`eslint` ecosystem and `vite/esbuild`).
+- Removing them fully requires coordinated breaking upgrades (`eslint` major and/or `vite` major) and plugin compatibility verification.
+- Current posture for alpha:
+  - runtime-critical client/server paths hardened
+  - vulnerable crypto polyfill chain removed
+  - dev server bound to localhost only

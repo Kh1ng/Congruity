@@ -1,10 +1,6 @@
 /// <reference types="vitest" />
 import { defineConfig, loadEnv } from "vite";
-import { polyfillNode } from "esbuild-plugin-polyfill-node";
-import { nodePolyfills } from "vite-plugin-node-polyfills";
 import viteReact from "@vitejs/plugin-react";
-import tailwindcss from "tailwindcss";
-import autoprefixer from "autoprefixer";
 import path from "path";
 import fs from "fs";
 
@@ -16,13 +12,14 @@ export default defineConfig(({ mode }) => {
 
   return {
     server: {
+      host: "127.0.0.1",
+      cors: false,
       https: hasCerts
         ? {
             cert: fs.readFileSync(certPath),
             key: fs.readFileSync(keyPath),
           }
         : false,
-      host: true,
       proxy: {
         "/api": {
           target: "http://localhost:3000",
@@ -31,22 +28,7 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-    plugins: [
-      viteReact(),
-      nodePolyfills({
-        include: ["path"],
-        exclude: ["http"],
-        globals: {
-          Buffer: true,
-          global: true,
-          process: true,
-        },
-        overrides: {
-          fs: "memfs",
-        },
-        protocolImports: true,
-      }),
-    ],
+    plugins: [viteReact()],
     css: {
       postcss: "./postcss.config.js",
     },
@@ -57,16 +39,6 @@ export default defineConfig(({ mode }) => {
         },
         plugins: [],
       },
-    },
-    build: {
-      entryPoints: ["src/index.js"],
-      bundle: true,
-      outfile: "dist/bundle.js",
-      plugins: [
-        polyfillNode({
-          // Options (optional)
-        }),
-      ],
     },
     define: {
       "import.meta.env": env,
@@ -91,8 +63,6 @@ export default defineConfig(({ mode }) => {
       alias: {
         "@": path.resolve(__dirname, "./src"),
         buffer: "buffer",
-        stream: "stream-browserify",
-        crypto: "crypto-browserify",
       },
     },
   };
