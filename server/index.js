@@ -14,12 +14,37 @@ const { Server } = require("socket.io");
 
 const app = express();
 
-const corsOrigins = (process.env.CORS_ORIGIN
-  ? process.env.CORS_ORIGIN.split(",")
-  : ["http://localhost:5173", "https://localhost:5173"]
-)
+const corsOrigins = (process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : [])
   .map((origin) => origin.trim())
   .filter(Boolean);
+
+const isDefaultAllowedOrigin = (origin) => {
+  if (!origin) return true;
+
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) {
+    return true;
+  }
+
+  if (/^tauri:\/\/localhost$/i.test(origin)) {
+    return true;
+  }
+
+  if (/^https?:\/\/tauri\.localhost(?::\d+)?$/i.test(origin)) {
+    return true;
+  }
+
+  return false;
+};
+
+const isAllowedOrigin = (origin) => {
+  if (corsOrigins.length === 0) {
+    return isDefaultAllowedOrigin(origin);
+  }
+
+  if (!origin) return true;
+  if (corsOrigins.includes(origin)) return true;
+  return isDefaultAllowedOrigin(origin);
+};
 
 const fallbackCertPath = path.join(__dirname, "../client/.cert/dev-cert.pem");
 const fallbackKeyPath = path.join(__dirname, "../client/.cert/dev-key.pem");
@@ -52,7 +77,13 @@ const server = useHttps
 // Configure Socket.IO with CORS for dev
 const io = new Server(server, {
   cors: {
-    origin: corsOrigins,
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error(`CORS origin not allowed: ${origin}`), false);
+    },
     methods: ["GET", "POST"],
   },
 });
