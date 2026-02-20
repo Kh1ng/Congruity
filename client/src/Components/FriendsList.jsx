@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Check, MessageCircle, UserPlus, X } from "lucide-react";
 import { useFriends } from "@/hooks";
 import Spinner from "./Spinner";
+import Avatar from "./Avatar";
 
 function FriendsList({ onMessage }) {
   const { friends, pending, outgoing, loading, error, addFriendByUsername, respondToRequest } = useFriends();
@@ -55,10 +56,11 @@ function FriendsList({ onMessage }) {
         <ul className="space-y-1.5">
           {friends.map((friend) => (
             <li key={friend.id} className="flex items-center gap-2">
-              <div
-                className={`w-2 h-2 rounded-full ${
-                  friend.status === "online" ? "bg-green-500" : "bg-slate-500"
-                }`}
+              <Avatar
+                name={friend.display_name || friend.username}
+                src={friend.avatar_url || friend.avatar}
+                size="sm"
+                status={friend.status}
               />
               <span className="flex-1">
                 {friend.display_name || friend.username}
@@ -81,6 +83,12 @@ function FriendsList({ onMessage }) {
           <ul className="space-y-1.5 text-sm">
             {pending.map((p) => (
               <li key={p.id} className="flex items-center gap-2">
+                <Avatar
+                  name={p.display_name || p.username}
+                  src={p.avatar_url || p.avatar}
+                  size="sm"
+                  status={p.status}
+                />
                 <span className="flex-1 text-slate-300">
                   {p.display_name || p.username}
                 </span>
@@ -109,7 +117,15 @@ function FriendsList({ onMessage }) {
           <h3 className="text-sm text-slate-400 mb-2">Pending Outgoing</h3>
           <ul className="space-y-1 text-sm text-slate-300">
             {outgoing.map((p) => (
-              <li key={p.id}>{p.display_name || p.username}</li>
+              <li key={p.id} className="flex items-center gap-2">
+                <Avatar
+                  name={p.display_name || p.username}
+                  src={p.avatar_url || p.avatar}
+                  size="sm"
+                  status={p.status}
+                />
+                <span>{p.display_name || p.username}</span>
+              </li>
             ))}
           </ul>
         </div>

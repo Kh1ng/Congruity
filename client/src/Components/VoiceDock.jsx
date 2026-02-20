@@ -49,6 +49,7 @@ function VoiceDock({ channel, voice, memberMap, embedded = false }) {
     stopScreenShare,
     endCall,
     roomUsers,
+    localSocketId,
     remoteStreams,
     localStream,
     stageStreamIds,
@@ -68,11 +69,13 @@ function VoiceDock({ channel, voice, memberMap, embedded = false }) {
       initials: localName.slice(0, 2).toUpperCase(),
       isLocal: true,
       stream: localStream,
+      avatar: localProfile.avatar_url || localProfile.avatar,
     });
 
     (roomUsers || []).forEach((entry) => {
       const socketId = entry?.socketId || entry;
       const userId = entry?.userId;
+      if (socketId === localSocketId || userId === user?.id) return;
       const profile = userId ? memberMap?.[userId]?.profile || {} : {};
       const name = profile.display_name || profile.username || userId || socketId;
       entries.push({
@@ -80,11 +83,12 @@ function VoiceDock({ channel, voice, memberMap, embedded = false }) {
         name,
         initials: String(name || "?").slice(0, 2).toUpperCase(),
         stream: remoteStreamMap.get(socketId),
+        avatar: profile.avatar_url || profile.avatar,
       });
     });
 
     return entries;
-  }, [roomUsers, memberMap, user, remoteStreamMap, localStream]);
+  }, [roomUsers, memberMap, user, remoteStreamMap, localStream, localSocketId]);
 
   if (!channel) return null;
 
@@ -153,6 +157,7 @@ function VoiceDock({ channel, voice, memberMap, embedded = false }) {
         <div className="flex min-w-0 items-center gap-2">
           <Avatar
             name={participants[0]?.name || "You"}
+            src={participants[0]?.avatar}
             size="md"
             className="shrink-0"
           />

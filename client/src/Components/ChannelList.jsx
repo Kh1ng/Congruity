@@ -2,13 +2,15 @@ import React from "react";
 import { Hash, Volume2, Video } from "lucide-react";
 import { useChannels } from "../hooks";
 import Spinner from "./Spinner";
+import Avatar from "./Avatar";
 
 function ChannelList({
   serverId,
   selectedChannelId,
-  selectedChannel,
   memberMap,
   roomUsers,
+  localSocketId,
+  isVoiceConnected,
   activeVoiceChannelId,
   onSelectChannel,
 }) {
@@ -68,6 +70,22 @@ function ChannelList({
         <ul className="space-y-1">
           {voiceChannels.map((ch) => {
             const isActive = selectedChannelId === ch.id;
+            const isActiveVoiceChannel = activeVoiceChannelId === ch.id;
+            const normalizedUsers = (roomUsers || [])
+              .map((entry) =>
+                typeof entry === "string"
+                  ? { socketId: entry, userId: null }
+                  : {
+                      socketId: entry?.socketId || null,
+                      userId: entry?.userId || null,
+                    }
+              )
+              .filter(
+                (entry, index, arr) =>
+                  arr.findIndex((item) => item.socketId === entry.socketId) === index
+              )
+              .filter((entry) => entry.socketId && entry.socketId !== localSocketId);
+
             return (
               <li key={ch.id}>
                 <button
@@ -82,21 +100,26 @@ function ChannelList({
                   <Volume2 size={14} className="text-theme-muted" />
                   <span>{ch.name}</span>
                 </button>
-                {selectedChannel?.id === ch.id &&
-                  activeVoiceChannelId === ch.id &&
-                  (roomUsers?.length || 0) > 0 && (
+                {isActiveVoiceChannel && (isVoiceConnected || normalizedUsers.length > 0) && (
                     <div className="ml-6 mt-1 space-y-1 text-xs text-theme-muted">
-                      {(roomUsers || []).map((entry) => {
-                        const userId = entry?.userId || entry;
+                      {isVoiceConnected && (
+                        <div className="flex items-center gap-2">
+                          <Avatar name="You" size="sm" />
+                          <span>You</span>
+                        </div>
+                      )}
+                      {normalizedUsers.map((entry) => {
+                        const userId = entry?.userId || entry?.socketId;
                         const profile = memberMap?.[userId]?.profile || {};
                         const name =
                           profile.display_name ||
                           profile.username ||
                           userId ||
                           "Unknown";
+                        const avatarSrc = profile.avatar_url || profile.avatar;
                         return (
-                          <div key={userId} className="flex items-center gap-2">
-                            <span className="h-2 w-2 rounded-full bg-theme-accent" />
+                          <div key={entry.socketId || userId} className="flex items-center gap-2">
+                            <Avatar name={name} src={avatarSrc} size="sm" />
                             <span>{name}</span>
                           </div>
                         );

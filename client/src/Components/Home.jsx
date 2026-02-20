@@ -15,40 +15,20 @@ function Home() {
   const [selectedServer, setSelectedServer] = useState(null);
   const [selectedChannel, setSelectedChannel] = useState(null);
   const [activeVoiceChannel, setActiveVoiceChannel] = useState(null);
-  const [collapseServers, setCollapseServers] = useState(false);
-  const [collapseChannels, setCollapseChannels] = useState(false);
   const [collapseSocial, setCollapseSocial] = useState(true);
-  const [layoutLocked, setLayoutLocked] = useState(true);
 
   const voiceSession = useWebRTC(activeVoiceChannel?.id);
   const { memberMap } = useServerMembers(selectedServer?.id);
 
   useEffect(() => {
-    const raw = localStorage.getItem("layoutPrefs");
-    if (raw) {
-      try {
-        const prefs = JSON.parse(raw);
-        setCollapseServers(!!prefs.collapseServers);
-        setCollapseChannels(!!prefs.collapseChannels);
-        setCollapseSocial(!!prefs.collapseSocial);
-        setLayoutLocked(prefs.layoutLocked !== false);
-      } catch {
-        // ignore
-      }
-    }
+    const raw = localStorage.getItem("settingsDockCollapsed");
+    if (raw == null) return;
+    setCollapseSocial(raw === "true");
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(
-      "layoutPrefs",
-      JSON.stringify({
-        collapseServers,
-        collapseChannels,
-        collapseSocial,
-        layoutLocked,
-      }),
-    );
-  }, [collapseServers, collapseChannels, collapseSocial, layoutLocked]);
+    localStorage.setItem("settingsDockCollapsed", String(collapseSocial));
+  }, [collapseSocial]);
 
   const renderChannelPanel = useMemo(() => {
     if (!selectedChannel) return <Messages channelId={null} />;
@@ -64,13 +44,7 @@ function Home() {
     return <Messages channelId={selectedChannel.id} memberMap={memberMap} />;
   }, [selectedChannel, voiceSession, memberMap]);
 
-  let leftDockWidth = "320px";
-  if (collapseServers && collapseChannels) {
-    leftDockWidth = "80px";
-  } else if (collapseServers || collapseChannels) {
-    leftDockWidth = "220px";
-  }
-
+  const leftDockWidth = "320px";
   const rightDockWidth = collapseSocial ? "0px" : "300px";
 
   const layoutPreset = useMemo(
@@ -96,9 +70,7 @@ function Home() {
       dock: "left",
       title: "Servers",
       order: 1,
-      content: collapseServers ? (
-        <div className="text-xs text-theme-muted">Servers hidden</div>
-      ) : (
+      content: (
         <ServerList
           onSelectServer={(server) => {
             setSelectedServer(server);
@@ -112,23 +84,22 @@ function Home() {
       dock: "left",
       title: "Channels",
       order: 2,
-      content: collapseChannels ? (
-        <div className="text-xs text-theme-muted">Channels hidden</div>
-      ) : (
+      content: (
         <ChannelList
           serverId={selectedServer?.id}
           selectedChannelId={selectedChannel?.id}
-          selectedChannel={selectedChannel}
           memberMap={memberMap}
           roomUsers={voiceSession.roomUsers}
+          localSocketId={voiceSession.localSocketId}
+          isVoiceConnected={voiceSession.isConnected}
           activeVoiceChannelId={activeVoiceChannel?.id}
           onSelectChannel={(channel) => {
             setSelectedChannel(channel);
             if (channel.type === "voice" || channel.type === "video") {
               setActiveVoiceChannel(channel);
-              if (!voiceSession.isConnected) {
+              if (!voiceSession.isConnected && !voiceSession.isConnecting) {
                 voiceSession.startCall({
-                  video: channel.type === "video",
+                  video: false,
                   audio: true,
                 });
               }
@@ -157,10 +128,8 @@ function Home() {
     return listPanelsByDock("left");
   }, [
     activeVoiceChannel,
-    collapseChannels,
-    collapseServers,
     memberMap,
-    selectedChannel,
+    selectedChannel?.id,
     selectedServer?.id,
     voiceSession,
   ]);
@@ -177,18 +146,6 @@ function Home() {
           voice={voiceSession}
           voiceChannel={activeVoiceChannel}
           memberMap={memberMap}
-          layoutPrefs={{
-            collapseServers,
-            collapseChannels,
-            collapseSocial,
-            layoutLocked,
-          }}
-          onLayoutPrefsChange={(prefs) => {
-            setCollapseServers(!!prefs.collapseServers);
-            setCollapseChannels(!!prefs.collapseChannels);
-            setCollapseSocial(!!prefs.collapseSocial);
-            setLayoutLocked(prefs.layoutLocked !== false);
-          }}
         />
       ),
     });
@@ -196,10 +153,6 @@ function Home() {
     return listPanelsByDock("right");
   }, [
     activeVoiceChannel,
-    collapseChannels,
-    collapseServers,
-    collapseSocial,
-    layoutLocked,
     memberMap,
     selectedServer,
     voiceSession,
@@ -237,7 +190,7 @@ function Home() {
                 <DockStack
                   dockId="left"
                   panels={leftPanels}
-                  locked={layoutLocked}
+                  locked
                 />
               </aside>
             ),
@@ -254,7 +207,7 @@ function Home() {
                   <DockStack
                     dockId="right"
                     panels={rightPanels}
-                    locked={layoutLocked}
+                    locked
                   />
                 )}
               </aside>

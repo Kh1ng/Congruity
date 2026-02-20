@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Send } from "lucide-react";
 import { useMessages } from "@/hooks";
 import Spinner from "./Spinner";
+import Avatar from "./Avatar";
 
 function Messages({ channelId, memberMap = {} }) {
   const { messages, loading, error, sendMessage } = useMessages(channelId);
@@ -52,11 +53,15 @@ function Messages({ channelId, memberMap = {} }) {
                 profile?.username ||
                 profile?.id ||
                 message.user_id;
+              const avatarSrc = profile?.avatar_url || profile?.avatar;
 
               return (
-                <li key={message.id}>
-                  <span className="text-slate-400 mr-2">{label}</span>
-                  <span>{message.content}</span>
+                <li key={message.id} className="flex items-start gap-2">
+                  <Avatar name={label} src={avatarSrc} size="sm" />
+                  <div>
+                    <div className="text-slate-400">{label}</div>
+                    <div>{message.content}</div>
+                  </div>
                 </li>
               );
             })}

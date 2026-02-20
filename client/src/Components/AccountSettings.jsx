@@ -20,6 +20,7 @@ function AccountSettings({ serverId }) {
   const [saving, setSaving] = useState(false);
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [nickname, setNickname] = useState("");
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -35,7 +36,7 @@ function AccountSettings({ serverId }) {
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("username, display_name")
+        .select("username, display_name, avatar_url")
         .eq("id", user.id)
         .single();
 
@@ -44,6 +45,7 @@ function AccountSettings({ serverId }) {
       } else if (profile) {
         setUsername(profile.username || "");
         setDisplayName(profile.display_name || "");
+        setAvatarUrl(profile.avatar_url || "");
       }
 
       if (serverId) {
@@ -77,6 +79,7 @@ function AccountSettings({ serverId }) {
       .update({
         username: username.trim(),
         display_name: displayName.trim(),
+        avatar_url: avatarUrl.trim() || null,
       })
       .eq("id", user.id);
 
@@ -168,6 +171,13 @@ function AccountSettings({ serverId }) {
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
           placeholder="Display name"
+          className="w-full rounded border border-theme bg-theme-surface-alt px-3 py-2 text-sm text-theme"
+        />
+        <input
+          type="url"
+          value={avatarUrl}
+          onChange={(e) => setAvatarUrl(e.target.value)}
+          placeholder="Avatar URL (storage image URL)"
           className="w-full rounded border border-theme bg-theme-surface-alt px-3 py-2 text-sm text-theme"
         />
         {serverId && (

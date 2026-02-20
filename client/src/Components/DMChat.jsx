@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Send } from "lucide-react";
 import { useDirectMessages } from "@/hooks";
 import Spinner from "./Spinner";
+import Avatar from "./Avatar";
 
 function DMChat({ friend }) {
   const { messages, loading, error, sendMessage } = useDirectMessages(friend?.id);
@@ -40,11 +41,18 @@ function DMChat({ friend }) {
         ) : (
           <ul className="space-y-2">
             {messages.map((m) => (
-              <li key={m.id}>
-                <strong>
-                  {m.profiles?.display_name || m.profiles?.username || m.user_id}:
-                </strong>{" "}
-                {m.content}
+              <li key={m.id} className="flex items-start gap-2">
+                <Avatar
+                  name={m.profiles?.display_name || m.profiles?.username || m.user_id}
+                  src={m.profiles?.avatar_url || m.profiles?.avatar}
+                  size="sm"
+                />
+                <div>
+                  <strong>
+                    {m.profiles?.display_name || m.profiles?.username || m.user_id}
+                  </strong>{" "}
+                  {m.content}
+                </div>
               </li>
             ))}
           </ul>

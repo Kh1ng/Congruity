@@ -10,14 +10,31 @@ const DEFAULT_SIGNALING_URL =
     : "ws://localhost:3001";
 const SIGNALING_URL = import.meta.env.VITE_SIGNALING_URL || DEFAULT_SIGNALING_URL;
 
-const isLocalHost = (host = "") => {
-  const normalized = host.toLowerCase();
-  return (
-    normalized === "localhost" ||
-    normalized === "127.0.0.1" ||
-    normalized === "::1" ||
-    normalized.endsWith(".localhost")
-  );
+const getUserMediaCompat = async (constraints) => {
+  if (navigator?.mediaDevices?.getUserMedia) {
+    return navigator.mediaDevices.getUserMedia(constraints);
+  }
+
+  const legacyGetUserMedia =
+    navigator?.getUserMedia ||
+    navigator?.webkitGetUserMedia ||
+    navigator?.mozGetUserMedia;
+
+  if (legacyGetUserMedia) {
+    return new Promise((resolve, reject) => {
+      legacyGetUserMedia.call(navigator, constraints, resolve, reject);
+    });
+  }
+
+  throw new Error("Microphone access unavailable in this runtime.");
+};
+
+const getDisplayMediaCompat = async (constraints) => {
+  if (navigator?.mediaDevices?.getDisplayMedia) {
+    return navigator.mediaDevices.getDisplayMedia(constraints);
+  }
+
+  throw new Error("Screen share is unavailable in this runtime.");
 };
 
 const TURN_URL = import.meta.env.VITE_TURN_URL;
@@ -45,6 +62,7 @@ const ICE_SERVERS = [
 export function useWebRTC(roomId) {
   const { user } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [localStream, setLocalStream] = useState(null);
   const [remoteStreams, setRemoteStreams] = useState(new Map());
   const [error, setError] = useState(null);
@@ -53,7 +71,7 @@ export function useWebRTC(roomId) {
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [roomUsers, setRoomUsers] = useState([]);
   const [localSocketId, setLocalSocketId] = useState(null);
-  const audioLevels = {};
+  const [audioLevels, setAudioLevels] = useState({});
   const audioWaveforms = {};
   const [videoConstraints, setVideoConstraints] = useState({
     width: 1280,
@@ -76,6 +94,8 @@ export function useWebRTC(roomId) {
   const remoteStreamsRef = useRef(new Map());
   const audioContextRef = useRef(null);
   const audioEnabledRef = useRef(false);
+  const audioMonitorsRef = useRef(new Map());
+  const audioAnimationFrameRef = useRef(null);
   const endCallRef = useRef(null);
 
   const ensureAudioContext = useCallback(async () => {
@@ -133,6 +153,89 @@ export function useWebRTC(roomId) {
       }
     },
     [playTone]
+  );
+
+  const stopAudioAnimation = useCallback(() => {
+    if (audioAnimationFrameRef.current) {
+      cancelAnimationFrame(audioAnimationFrameRef.current);
+      audioAnimationFrameRef.current = null;
+    }
+  }, []);
+
+  const cleanupAudioMonitor = useCallback((id) => {
+    const monitor = audioMonitorsRef.current.get(id);
+    if (monitor) {
+      monitor.source.disconnect();
+      audioMonitorsRef.current.delete(id);
+    }
+  }, []);
+
+  const startAudioAnimation = useCallback(() => {
+    if (audioAnimationFrameRef.current) return;
+
+    const tick = () => {
+      setAudioLevels(() => {
+        const next = {};
+        audioMonitorsRef.current.forEach((monitor, id) => {
+          monitor.analyser.getByteTimeDomainData(monitor.buffer);
+          let sumSquares = 0;
+          for (let i = 0; i < monitor.buffer.length; i += 1) {
+            const normalized = (monitor.buffer[i] - 128) / 128;
+            sumSquares += normalized * normalized;
+          }
+          const rms = Math.sqrt(sumSquares / monitor.buffer.length);
+          next[id] = Math.min(1, rms * 3.5);
+        });
+        return next;
+      });
+
+      if (audioMonitorsRef.current.size === 0) {
+        audioAnimationFrameRef.current = null;
+        return;
+      }
+
+      audioAnimationFrameRef.current = requestAnimationFrame(tick);
+    };
+
+    audioAnimationFrameRef.current = requestAnimationFrame(tick);
+  }, []);
+
+  const monitorStreamAudio = useCallback(
+    async (id, stream) => {
+      if (!stream) return;
+      const audioTrack = stream
+        .getAudioTracks()
+        .find((track) => track.readyState === "live" && track.enabled);
+      if (!audioTrack) {
+        cleanupAudioMonitor(id);
+        setAudioLevels((prev) => {
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
+        return;
+      }
+
+      const context = await ensureAudioContext();
+      if (!context) return;
+
+      cleanupAudioMonitor(id);
+
+      const sourceStream = new MediaStream([audioTrack]);
+      const source = context.createMediaStreamSource(sourceStream);
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+
+      audioMonitorsRef.current.set(id, {
+        source,
+        analyser,
+        buffer: new Uint8Array(analyser.fftSize),
+      });
+
+      startAudioAnimation();
+    },
+    [cleanupAudioMonitor, ensureAudioContext, startAudioAnimation]
   );
 
   const renegotiateAll = useCallback(async () => {
@@ -203,11 +306,12 @@ export function useWebRTC(roomId) {
           updated.set(userId, inboundStream);
           return updated;
         });
+        monitorStreamAudio(userId, inboundStream);
       };
 
       pc.onconnectionstatechange = () => {
         console.log(`Connection state with ${userId}:`, pc.connectionState);
-        if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
+      if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
           removePeerConnection(userId);
         }
       };
@@ -234,7 +338,7 @@ export function useWebRTC(roomId) {
 
       return pc;
     },
-    [roomId]
+    [roomId, monitorStreamAudio]
   );
 
   /**
@@ -247,12 +351,18 @@ export function useWebRTC(roomId) {
       peerConnectionsRef.current.delete(userId);
       peerMetaRef.current.delete(userId);
     }
+    cleanupAudioMonitor(userId);
     setRemoteStreams((prev) => {
       const updated = new Map(prev);
       updated.delete(userId);
       return updated;
     });
-  }, []);
+    setAudioLevels((prev) => {
+      const next = { ...prev };
+      delete next[userId];
+      return next;
+    });
+  }, [cleanupAudioMonitor]);
 
   /**
    * Initialize Socket.IO connection
@@ -391,26 +501,16 @@ export function useWebRTC(roomId) {
    */
   const startCall = useCallback(
     async ({ video = true, audio = true } = {}) => {
+      if (isConnected || isConnecting) return;
       try {
+        setIsConnecting(true);
         setError(null);
         setIsVideoOff(!video);
         audioEnabledRef.current = true;
         await ensureAudioContext();
 
         // Get user media
-        const hasGetUserMedia = !!navigator?.mediaDevices?.getUserMedia;
-        const runningOnTrustedOrigin =
-          window.isSecureContext ||
-          isLocalHost(window.location.hostname) ||
-          window.location.protocol === "tauri:";
-
-        if (!hasGetUserMedia || !runningOnTrustedOrigin) {
-          throw new Error(
-            "Microphone access unavailable in this runtime. For Tauri, run from localhost/HTTPS and enable native camera/mic permissions."
-          );
-        }
-
-        const stream = await navigator.mediaDevices.getUserMedia({
+        const stream = await getUserMediaCompat({
           video: video
             ? {
                 width: { ideal: videoConstraints.width },
@@ -423,6 +523,7 @@ export function useWebRTC(roomId) {
 
         localStreamRef.current = stream;
         setLocalStream(stream);
+        monitorStreamAudio("local", stream);
 
         // Add tracks to any existing peer connections (late-joiner)
         peerConnectionsRef.current.forEach((pc) => {
@@ -439,9 +540,11 @@ export function useWebRTC(roomId) {
         console.error("Error starting call:", err);
         setError(err.message);
         throw err;
+      } finally {
+        setIsConnecting(false);
       }
     },
-    [initSocket, ensureAudioContext]
+    [initSocket, ensureAudioContext, isConnected, isConnecting, monitorStreamAudio, renegotiateAll, videoConstraints]
   );
 
   /**
@@ -452,7 +555,7 @@ export function useWebRTC(roomId) {
       if (!localStreamRef.current) {
         throw new Error("Start a call before sharing your screen.");
       }
-      const screenStream = await navigator.mediaDevices.getDisplayMedia({
+      const screenStream = await getDisplayMediaCompat({
         video: {
           width: { ideal: screenConstraints.width },
           height: { ideal: screenConstraints.height },
@@ -475,7 +578,7 @@ export function useWebRTC(roomId) {
 
       // Handle screen share stop
       videoTrack.onended = () => {
-        stopScreenShare();
+        setIsScreenSharing(false);
       };
 
       setIsScreenSharing(true);
@@ -489,12 +592,13 @@ export function useWebRTC(roomId) {
         }
         localStreamRef.current.addTrack(videoTrack);
         setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
+        monitorStreamAudio("local", localStreamRef.current);
       }
     } catch (err) {
       console.error("Error starting screen share:", err);
       setError(err.message);
     }
-  }, []);
+  }, [monitorStreamAudio, renegotiateAll, screenConstraints]);
 
   /**
    * Stop screen sharing and return to camera
@@ -507,7 +611,7 @@ export function useWebRTC(roomId) {
       let videoTrack = null;
 
       if (shouldRestoreCamera) {
-        const cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const cameraStream = await getUserMediaCompat({ video: true });
         videoTrack = cameraStream.getVideoTracks()[0];
       }
 
@@ -532,10 +636,11 @@ export function useWebRTC(roomId) {
       setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
       setIsScreenSharing(false);
       renegotiateAll();
+      monitorStreamAudio("local", localStreamRef.current);
     } catch (err) {
       console.error("Error stopping screen share:", err);
     }
-  }, [isVideoOff]);
+  }, [isVideoOff, monitorStreamAudio, renegotiateAll]);
 
   /**
    * Toggle audio mute
@@ -546,9 +651,10 @@ export function useWebRTC(roomId) {
       if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled;
         setIsMuted(!audioTrack.enabled);
+        monitorStreamAudio("local", localStreamRef.current);
       }
     }
-  }, []);
+  }, [monitorStreamAudio]);
 
   /**
    * Toggle video on/off
@@ -558,8 +664,7 @@ export function useWebRTC(roomId) {
 
     const videoTrack = localStreamRef.current.getVideoTracks()[0];
     if (!videoTrack) {
-      navigator.mediaDevices
-        .getUserMedia({ video: true })
+      getUserMediaCompat({ video: true })
         .then((cameraStream) => {
           const newTrack = cameraStream.getVideoTracks()[0];
           if (!newTrack) return;
@@ -576,6 +681,7 @@ export function useWebRTC(roomId) {
           setIsVideoOff(false);
           setIsScreenSharing(false);
           renegotiateAll();
+          monitorStreamAudio("local", localStreamRef.current);
         })
         .catch((err) => {
           console.error("Error enabling camera:", err);
@@ -599,8 +705,7 @@ export function useWebRTC(roomId) {
       return;
     }
 
-    navigator.mediaDevices
-      .getUserMedia({ video: true })
+    getUserMediaCompat({ video: true })
       .then((cameraStream) => {
         const newTrack = cameraStream.getVideoTracks()[0];
         if (!newTrack) return;
@@ -617,12 +722,13 @@ export function useWebRTC(roomId) {
         setIsVideoOff(false);
         setIsScreenSharing(false);
         renegotiateAll();
+        monitorStreamAudio("local", localStreamRef.current);
       })
       .catch((err) => {
         console.error("Error enabling camera:", err);
         setError(err.message);
       });
-  }, [renegotiateAll]);
+  }, [monitorStreamAudio, renegotiateAll]);
 
   /**
    * End the call
@@ -650,10 +756,15 @@ export function useWebRTC(roomId) {
     remoteStreamsRef.current = new Map();
     setRemoteStreams(new Map());
     setIsConnected(false);
+    setIsConnecting(false);
     setIsMuted(false);
     setIsVideoOff(false);
+    cleanupAudioMonitor("local");
+    audioMonitorsRef.current.forEach((_, id) => cleanupAudioMonitor(id));
+    setAudioLevels({});
+    stopAudioAnimation();
     playCue("leave");
-  }, [roomId, playCue]);
+  }, [cleanupAudioMonitor, playCue, roomId, stopAudioAnimation]);
 
   useEffect(() => {
     endCallRef.current = endCall;
@@ -663,11 +774,13 @@ export function useWebRTC(roomId) {
   useEffect(() => {
     return () => {
       endCallRef.current?.();
+      stopAudioAnimation();
     };
-  }, []);
+  }, [stopAudioAnimation]);
 
   return {
     isConnected,
+    isConnecting,
     localStream,
     remoteStreams: Array.from(remoteStreams.entries()),
     error,

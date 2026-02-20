@@ -1,5 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
-import { Mic, MicOff, MonitorUp, Phone, PhoneOff, Video, VideoOff } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import Avatar from "./Avatar";
 
@@ -38,6 +37,7 @@ function ParticipantMedia({ stream, isLocal }) {
 
 function VoicePanel({ channel, voice, memberMap }) {
   const { user } = useAuth();
+  const [showLocalPreview, setShowLocalPreview] = useState(false);
 
   const {
     isConnected,
@@ -47,13 +47,9 @@ function VoicePanel({ channel, voice, memberMap }) {
     isMuted,
     isVideoOff,
     isScreenSharing,
-    startCall,
-    endCall,
-    toggleMute,
-    toggleVideo,
-    startScreenShare,
-    stopScreenShare,
+    audioLevels,
     roomUsers,
+    localSocketId,
   } = voice || {};
 
   const remoteStreamMap = useMemo(() => new Map(remoteStreams || []), [remoteStreams]);
@@ -70,11 +66,13 @@ function VoicePanel({ channel, voice, memberMap }) {
       initials: localName.slice(0, 2).toUpperCase(),
       isLocal: true,
       stream: localStream,
+      avatar: localProfile.avatar_url || localProfile.avatar,
     });
 
     (roomUsers || []).forEach((entry) => {
       const socketId = entry?.socketId || entry;
       const userId = entry?.userId;
+      if (socketId === localSocketId || userId === user?.id) return;
       const profile = userId ? memberMap?.[userId]?.profile || {} : {};
       const name = profile.display_name || profile.username || userId || socketId;
       entries.push({
@@ -83,11 +81,12 @@ function VoicePanel({ channel, voice, memberMap }) {
         initials: String(name || "?").slice(0, 2).toUpperCase(),
         isLocal: false,
         stream: remoteStreamMap.get(socketId),
+        avatar: profile.avatar_url || profile.avatar,
       });
     });
 
     return entries;
-  }, [roomUsers, memberMap, user, remoteStreamMap, localStream]);
+  }, [roomUsers, memberMap, user, remoteStreamMap, localStream, localSocketId]);
 
   const videoParticipants = useMemo(
     () =>
@@ -103,14 +102,29 @@ function VoicePanel({ channel, voice, memberMap }) {
   }
 
   const showVideoStage = videoParticipants.length > 0;
-  const controlButtonClass =
-    "inline-flex items-center gap-2 rounded-md border border-theme bg-theme-surface px-3 py-2 text-sm font-medium text-theme-muted transition hover:text-theme-accent disabled:cursor-not-allowed disabled:opacity-50";
-
   return (
     <div className="flex flex-col h-full">
-      <div className="mb-3 text-base font-semibold text-theme">#{channel.name}</div>
+      <div className="mb-3 flex items-center justify-between">
+        <div className="text-base font-semibold text-theme">#{channel.name}</div>
+        <button
+          type="button"
+          onClick={() => setShowLocalPreview((prev) => !prev)}
+          className="rounded border border-theme bg-theme-surface px-2 py-1 text-xs text-theme-muted transition hover:text-theme-accent"
+        >
+          {showLocalPreview ? "Hide preview" : "Show preview"}
+        </button>
+      </div>
 
       {error && <div className="text-red-500 mb-2">{error}</div>}
+
+      {showLocalPreview && localStream && (
+        <div className="mb-3 rounded-md border border-theme bg-theme-surface p-3">
+          <div className="mb-2 text-xs text-theme-muted">Your preview</div>
+          <div className="relative h-44 w-full overflow-hidden rounded-md border border-theme bg-theme-surface-alt">
+            <ParticipantMedia stream={localStream} isLocal />
+          </div>
+        </div>
+      )}
 
       {showVideoStage ? (
         <div className="grid gap-3 mb-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
@@ -134,77 +148,34 @@ function VoicePanel({ channel, voice, memberMap }) {
               className="rounded-md border border-theme bg-theme-surface px-3 py-3"
             >
               <div className="flex items-center gap-2">
-                <Avatar name={participant.name} size="md" />
+                <Avatar name={participant.name} src={participant.avatar} size="md" />
                 <div className="text-sm text-theme">
                   {participant.isLocal ? "You" : participant.name}
                 </div>
               </div>
               <div className="mt-2 flex items-end gap-1">
-                {[8, 14, 10, 16, 11].map((height, index) => (
+                {[0, 1, 2, 3, 4].map((index) => {
+                  const levelKey = participant.isLocal ? "local" : participant.id;
+                  const level = Number(audioLevels?.[levelKey] || 0);
+                  const barHeight = Math.max(4, Math.round((8 + index * 2) * (0.5 + level)));
+                  return (
                   <span
-                    // Deterministic faux waveform for now; real levels can plug in later.
-                    key={`${participant.id}-${height}`}
+                    key={`${participant.id}-${index}`}
                     className={`inline-block w-1 rounded bg-theme-accent ${index % 2 === 0 ? "animate-pulse" : ""}`}
-                    style={{ height: `${height}px` }}
+                    style={{ height: `${barHeight}px` }}
                   />
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))}
         </div>
       )}
 
-      <div className="flex items-center gap-2 flex-wrap">
-        {!isConnected ? (
-          <button
-            type="button"
-            onClick={() => startCall({ video: false, audio: true })}
-            className={controlButtonClass}
-          >
-            <Phone size={16} />
-            Join Voice
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={endCall}
-            className={controlButtonClass}
-          >
-            <PhoneOff size={16} />
-            Leave Voice
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={toggleMute}
-          className={controlButtonClass}
-          disabled={!isConnected}
-        >
-          {isMuted ? <MicOff size={16} /> : <Mic size={16} />}
-          {isMuted ? "Unmute" : "Mute"}
-        </button>
-        <button
-          type="button"
-          onClick={toggleVideo}
-          className={controlButtonClass}
-          disabled={!isConnected}
-        >
-          {isVideoOff ? <Video size={16} /> : <VideoOff size={16} />}
-          {isVideoOff ? "Camera On" : "Camera Off"}
-        </button>
-        <button
-          type="button"
-          onClick={isScreenSharing ? stopScreenShare : startScreenShare}
-          className={controlButtonClass}
-          disabled={!isConnected}
-        >
-          <MonitorUp size={16} />
-          {isScreenSharing ? "Stop Share" : "Share Screen"}
-        </button>
-      </div>
-
       <div className="mt-4 text-sm text-theme-muted">
-        {isConnected ? "Connected to voice channel." : "Not connected."}
+        {isConnected
+          ? `${isMuted ? "Muted" : "Live"} • ${isVideoOff ? "Camera off" : "Camera on"}${isScreenSharing ? " • Screen sharing" : ""}`
+          : "Not connected."}
       </div>
     </div>
   );
