@@ -64,3 +64,15 @@ The installer now generates:
 - `/Users/coltonspurgin/Developer/congruity/docker/selfhosted-backend-registration.sql`
 
 Use `selfhosted-backend-registration.sql` in Supabase after creating a server to map that server to its self-hosted signaling/storage endpoints.
+
+## Alpha Build Targets (Tauri)
+
+Desktop:
+- macOS
+- Windows
+
+Mobile:
+- Android
+- iOS
+
+See `/Users/coltonspurgin/Developer/congruity/docs/ALPHA_RELEASE.md` for commands, init steps, and toolchain prerequisites.

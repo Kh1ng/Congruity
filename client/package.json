@@ -17,7 +17,17 @@
     "test:coverage": "vitest run --coverage",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "tauri:build:desktop": "tauri build",
+    "tauri:build:macos": "tauri build",
+    "tauri:build:windows": "tauri build",
+    "tauri:mobile:init:android": "tauri android init",
+    "tauri:mobile:init:ios": "tauri ios init",
+    "tauri:mobile:init": "npm run tauri:mobile:init:android && npm run tauri:mobile:init:ios",
+    "tauri:android:dev": "tauri android dev",
+    "tauri:android:build": "tauri android build",
+    "tauri:ios:dev": "tauri ios dev",
+    "tauri:ios:build": "tauri ios build"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",
