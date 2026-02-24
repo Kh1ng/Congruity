@@ -2,6 +2,8 @@
 set -e
 
 CONFIGURE_ONLY=false
+NON_INTERACTIVE=false
+SKIP_PREREQ_CHECKS=false
 SKIP_CLOUDFLARE_PROMPT=${SKIP_CLOUDFLARE_PROMPT:-false}
 
 for arg in "$@"; do
@@ -9,11 +11,21 @@ for arg in "$@"; do
     --configure-only|--setup-only)
       CONFIGURE_ONLY=true
       ;;
+    --non-interactive)
+      NON_INTERACTIVE=true
+      ;;
+    --skip-prereq-checks)
+      SKIP_PREREQ_CHECKS=true
+      ;;
     --skip-cloudflare)
       SKIP_CLOUDFLARE_PROMPT=true
       ;;
   esac
 done
+
+if [ "${NON_INTERACTIVE}" = "true" ]; then
+  SKIP_CLOUDFLARE_PROMPT=true
+fi
 
 # Colors for output
 RED='\033[0;31m'
@@ -31,28 +43,40 @@ echo -e "${NC}"
 # Check dependencies
 echo -e "${YELLOW}Checking dependencies...${NC}"
 
-if ! command -v docker &> /dev/null; then
-    echo -e "${RED}Error: Docker is not installed${NC}"
-    echo "Please install Docker: https://docs.docker.com/get-docker/"
-    exit 1
-fi
+if [ "${SKIP_PREREQ_CHECKS}" = "true" ]; then
+    echo -e "${YELLOW}Skipping dependency checks (--skip-prereq-checks)${NC}"
+else
+    if ! command -v docker &> /dev/null; then
+        echo -e "${RED}Error: Docker is not installed${NC}"
+        echo "Please install Docker: https://docs.docker.com/get-docker/"
+        exit 1
+    fi
 
-if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
-    echo -e "${RED}Error: Docker Compose is not installed${NC}"
-    echo "Please install Docker Compose: https://docs.docker.com/compose/install/"
-    exit 1
-fi
+    if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
+        echo -e "${RED}Error: Docker Compose is not installed${NC}"
+        echo "Please install Docker Compose: https://docs.docker.com/compose/install/"
+        exit 1
+    fi
 
-echo -e "${GREEN}✓ Docker and Docker Compose found${NC}"
+    echo -e "${GREEN}✓ Docker and Docker Compose found${NC}"
+fi
 
 # Check if .env exists
 if [ -f .env ]; then
     echo -e "${YELLOW}Found existing .env file${NC}"
-    read -p "Do you want to reconfigure? (y/N) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "Skipping configuration..."
-        SKIP_CONFIG=true
+    if [ "${NON_INTERACTIVE}" = "true" ]; then
+        SETUP_RECONFIGURE_EXISTING=${SETUP_RECONFIGURE_EXISTING:-true}
+        if [[ ! ${SETUP_RECONFIGURE_EXISTING} =~ ^([Tt][Rr][Uu][Ee]|1|[Yy]([Ee][Ss])?)$ ]]; then
+            echo "Skipping configuration (non-interactive mode)..."
+            SKIP_CONFIG=true
+        fi
+    else
+        read -p "Do you want to reconfigure? (y/N) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo "Skipping configuration..."
+            SKIP_CONFIG=true
+        fi
     fi
 fi
 
@@ -64,7 +88,12 @@ if [ "$SKIP_CONFIG" != "true" ]; then
     echo "Choose deployment mode:"
     echo "  1) Cloud Supabase + local Signaling/MinIO (recommended for quick self-host)"
     echo "  2) Full local Supabase stack + Signaling/MinIO"
-    read -p "Select mode (1/2, default 1): " DEPLOY_MODE
+    if [ "${NON_INTERACTIVE}" = "true" ]; then
+      DEPLOY_MODE=${DEPLOY_MODE:-1}
+      echo "Select mode (1/2, default 1): ${DEPLOY_MODE} (non-interactive)"
+    else
+      read -p "Select mode (1/2, default 1): " DEPLOY_MODE
+    fi
     DEPLOY_MODE=${DEPLOY_MODE:-1}
     USE_LOCAL_SUPABASE=false
     if [ "$DEPLOY_MODE" = "2" ]; then
@@ -73,9 +102,9 @@ if [ "$SKIP_CONFIG" != "true" ]; then
     
     # Generate secrets
     echo -e "\n${YELLOW}Generating secure secrets...${NC}"
-    POSTGRES_PASSWORD=$(openssl rand -base64 32)
-    JWT_SECRET=$(openssl rand -base64 32)
-    SECRET_KEY_BASE=$(openssl rand -base64 64 | tr -d '\n')
+    POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-$(openssl rand -base64 32)}
+    JWT_SECRET=${JWT_SECRET:-$(openssl rand -base64 32)}
+    SECRET_KEY_BASE=${SECRET_KEY_BASE:-$(openssl rand -base64 64 | tr -d '\n')}
     
     # Generate Supabase keys (simplified - in production use proper JWT generation)
     # These are placeholder keys - users should generate proper ones
@@ -83,43 +112,78 @@ if [ "$SKIP_CONFIG" != "true" ]; then
     echo "See: https://supabase.com/docs/guides/self-hosting#api-keys"
     
     # Site URL
-    read -p "Enter your site URL (default: http://localhost:5173): " SITE_URL
+    if [ "${NON_INTERACTIVE}" = "true" ]; then
+      SITE_URL=${SITE_URL:-http://localhost:5173}
+      echo "Enter your site URL (default: http://localhost:5173): ${SITE_URL} (non-interactive)"
+    else
+      read -p "Enter your site URL (default: http://localhost:5173): " SITE_URL
+    fi
     SITE_URL=${SITE_URL:-http://localhost:5173}
     
     if [ "$USE_LOCAL_SUPABASE" = "true" ]; then
-      read -p "Enter your API URL (default: http://localhost:8000): " API_URL
+      if [ "${NON_INTERACTIVE}" = "true" ]; then
+        API_URL=${API_URL:-http://localhost:8000}
+        echo "Enter your API URL (default: http://localhost:8000): ${API_URL} (non-interactive)"
+      else
+        read -p "Enter your API URL (default: http://localhost:8000): " API_URL
+      fi
       API_URL=${API_URL:-http://localhost:8000}
     else
-      read -p "Enter your cloud Supabase URL (e.g. https://xyz.supabase.co): " API_URL
+      if [ "${NON_INTERACTIVE}" = "true" ]; then
+        API_URL=${API_URL:-}
+        echo "Enter your cloud Supabase URL (e.g. https://xyz.supabase.co): ${API_URL} (non-interactive)"
+      else
+        read -p "Enter your cloud Supabase URL (e.g. https://xyz.supabase.co): " API_URL
+      fi
       if [ -z "$API_URL" ]; then
         echo -e "${RED}Cloud Supabase URL is required in mode 1${NC}"
         exit 1
       fi
     fi
 
-    read -p "Public hostname/IP for self-hosted signaling+MinIO (default: localhost): " SELFHOSTED_PUBLIC_HOST
+    if [ "${NON_INTERACTIVE}" = "true" ]; then
+      SELFHOSTED_PUBLIC_HOST=${SELFHOSTED_PUBLIC_HOST:-localhost}
+      echo "Public hostname/IP for self-hosted signaling+MinIO (default: localhost): ${SELFHOSTED_PUBLIC_HOST} (non-interactive)"
+    else
+      read -p "Public hostname/IP for self-hosted signaling+MinIO (default: localhost): " SELFHOSTED_PUBLIC_HOST
+    fi
     SELFHOSTED_PUBLIC_HOST=${SELFHOSTED_PUBLIC_HOST:-localhost}
 
-    read -p "MinIO bucket name (default: congruity-media): " MINIO_BUCKET
+    if [ "${NON_INTERACTIVE}" = "true" ]; then
+      MINIO_BUCKET=${MINIO_BUCKET:-congruity-media}
+      echo "MinIO bucket name (default: congruity-media): ${MINIO_BUCKET} (non-interactive)"
+    else
+      read -p "MinIO bucket name (default: congruity-media): " MINIO_BUCKET
+    fi
     MINIO_BUCKET=${MINIO_BUCKET:-congruity-media}
     MINIO_ROOT_USER=minioadmin
-    MINIO_ROOT_PASSWORD=$(openssl rand -base64 24 | tr -d '\n')
+    MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-$(openssl rand -base64 24 | tr -d '\n')}
     
     # Dashboard credentials
-    read -p "Enter dashboard username (default: admin): " DASHBOARD_USER
+    if [ "${NON_INTERACTIVE}" = "true" ]; then
+      DASHBOARD_USER=${DASHBOARD_USER:-admin}
+      echo "Enter dashboard username (default: admin): ${DASHBOARD_USER} (non-interactive)"
+    else
+      read -p "Enter dashboard username (default: admin): " DASHBOARD_USER
+    fi
     DASHBOARD_USER=${DASHBOARD_USER:-admin}
     
-    read -s -p "Enter dashboard password: " DASHBOARD_PASS
-    echo
+    if [ "${NON_INTERACTIVE}" = "true" ]; then
+        DASHBOARD_PASS=${DASHBOARD_PASS:-}
+        echo "Enter dashboard password: [hidden] (non-interactive)"
+    else
+        read -s -p "Enter dashboard password: " DASHBOARD_PASS
+        echo
+    fi
     if [ -z "$DASHBOARD_PASS" ]; then
-        DASHBOARD_PASS=$(openssl rand -base64 16)
+        DASHBOARD_PASS=${DASHBOARD_PASS:-$(openssl rand -base64 16)}
         echo -e "${YELLOW}Generated dashboard password: ${DASHBOARD_PASS}${NC}"
     fi
     
     # Create .env file
     cat > .env << EOF
 # Congruity Self-Hosted Configuration
-# Generated on $(date)
+# Generated on ${SETUP_GENERATED_AT:-$(date)}
 
 # Database
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}

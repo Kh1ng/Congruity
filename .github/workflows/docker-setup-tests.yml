@@ -1,0 +1,26 @@
+name: Docker Setup Script Tests
+
+on:
+  push:
+    paths:
+      - "docker/**"
+      - ".github/workflows/docker-setup-tests.yml"
+  pull_request:
+    paths:
+      - "docker/**"
+      - ".github/workflows/docker-setup-tests.yml"
+
+jobs:
+  setup-script-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Bash syntax checks
+        run: |
+          bash -n docker/setup.sh
+          bash -n docker/tests/test_setup.sh
+
+      - name: Run setup script tests
+        run: bash docker/tests/test_setup.sh
