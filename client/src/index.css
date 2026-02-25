@@ -13,8 +13,11 @@
 :root,
 :root[data-theme="gruvbox"] {
   --color-bg: #282828;
+  --color-bg-rgb: 40 40 40;
   --color-surface: #3c3836;
+  --color-surface-rgb: 60 56 54;
   --color-surface-alt: #1d2021;
+  --color-surface-alt-rgb: 29 32 33;
   --color-text: #ebdbb2;
   --color-text-muted: #928374;
   --color-border: #665c54;
@@ -23,12 +26,17 @@
   --color-accent-2: #fabd2f;
   --color-danger: #fb4934;
   --color-success: #b8bb26;
+  --ui-panel-opacity: 0.92;
+  --ui-bg-opacity: 1;
 }
 
 :root[data-theme="dark"] {
   --color-bg: #0f172a;
+  --color-bg-rgb: 15 23 42;
   --color-surface: #111827;
+  --color-surface-rgb: 17 24 39;
   --color-surface-alt: #1f2937;
+  --color-surface-alt-rgb: 31 41 55;
   --color-text: #f8fafc;
   --color-text-muted: #94a3b8;
   --color-border: #334155;
@@ -41,8 +49,11 @@
 
 :root[data-theme="light"] {
   --color-bg: #f8fafc;
+  --color-bg-rgb: 248 250 252;
   --color-surface: #ffffff;
+  --color-surface-rgb: 255 255 255;
   --color-surface-alt: #f1f5f9;
+  --color-surface-alt-rgb: 241 245 249;
   --color-text: #0f172a;
   --color-text-muted: #475569;
   --color-border: #e2e8f0;
@@ -55,8 +66,11 @@
 
 :root[data-theme="tokyo-night"] {
   --color-bg: #1a1b26;
+  --color-bg-rgb: 26 27 38;
   --color-surface: #24283b;
+  --color-surface-rgb: 36 40 59;
   --color-surface-alt: #1f2335;
+  --color-surface-alt-rgb: 31 35 53;
   --color-text: #c0caf5;
   --color-text-muted: #9aa5ce;
   --color-border: #414868;
@@ -69,8 +83,11 @@
 
 :root[data-theme="monokai"] {
   --color-bg: #272822;
+  --color-bg-rgb: 39 40 34;
   --color-surface: #2d2a2e;
+  --color-surface-rgb: 45 42 46;
   --color-surface-alt: #221f22;
+  --color-surface-alt-rgb: 34 31 34;
   --color-text: #f8f8f2;
   --color-text-muted: #a59f85;
   --color-border: #5b595c;
@@ -82,9 +99,19 @@
 }
 
 body {
-  background-color: var(--color-bg);
+  background-color: rgb(var(--color-bg-rgb) / var(--ui-bg-opacity, 1));
   color: var(--color-text);
   font-family: "Inter", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.ui-panel-surface {
+  background-color: rgb(var(--color-surface-rgb) / var(--ui-panel-opacity, 0.92));
+  backdrop-filter: blur(6px);
+}
+
+.ui-panel-surface-alt {
+  background-color: rgb(var(--color-surface-alt-rgb) / var(--ui-panel-opacity, 0.92));
+  backdrop-filter: blur(6px);
 }
 
 a {

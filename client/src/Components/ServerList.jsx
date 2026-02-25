@@ -9,7 +9,15 @@ import {
 } from "@/lib/directConnect";
 
 function ServerList({ onSelectServer }) {
-  const { servers, loading, error, createServer, joinServer } = useServers();
+  const {
+    servers,
+    loading,
+    error,
+    createServer,
+    joinServer,
+    leaveServer,
+    deleteServer,
+  } = useServers();
   const [showCreate, setShowCreate] = useState(false);
   const [newServerName, setNewServerName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
@@ -31,6 +39,41 @@ function ServerList({ onSelectServer }) {
     const localIds = new Set(directServers.map((server) => server.id));
     return [...directServers, ...servers.filter((server) => !localIds.has(server.id))];
   }, [directServers, servers]);
+
+  const clearSelectionIfMatch = (serverId) => {
+    if (selectedId === serverId) {
+      setSelectedId(null);
+      onSelectServer?.(null);
+    }
+  };
+
+  const isOwnedServer = (server) =>
+    Boolean(
+      server?.server_members?.some((member) => member?.role === "owner") ||
+        server?.is_owner === true,
+    );
+
+  const handleRemoveServer = async (server) => {
+    if (!server) return;
+
+    if (server.isDirect) {
+      if (!window.confirm(`Remove local direct connection "${server.name}"?`)) return;
+      setDirectServers((prev) => prev.filter((item) => item.id !== server.id));
+      clearSelectionIfMatch(server.id);
+      return;
+    }
+
+    const owned = isOwnedServer(server);
+    const verb = owned ? "delete" : "leave";
+    if (!window.confirm(`Are you sure you want to ${verb} "${server.name}"?`)) return;
+
+    if (owned) {
+      await deleteServer(server.id);
+    } else {
+      await leaveServer(server.id);
+    }
+    clearSelectionIfMatch(server.id);
+  };
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -206,6 +249,29 @@ function ServerList({ onSelectServer }) {
               {server.description && (
                 <p className="text-sm text-slate-400">{server.description}</p>
               )}
+              <div className="mt-2 flex items-center gap-2 text-xs">
+                {server.isDirect ? (
+                  <span className="text-theme-muted">Local direct connection</span>
+                ) : (
+                  <span className="text-theme-muted">
+                    {isOwnedServer(server) ? "Owner" : "Member"}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className="ml-auto rounded border border-theme px-2 py-0.5 text-theme-muted hover:text-theme-accent"
+                  onClick={async (event) => {
+                    event.stopPropagation();
+                    try {
+                      await handleRemoveServer(server);
+                    } catch (err) {
+                      alert(err.message || "Unable to update server membership");
+                    }
+                  }}
+                >
+                  {server.isDirect ? "Remove" : isOwnedServer(server) ? "Delete" : "Leave"}
+                </button>
+              </div>
             </li>
           ))}
         </ul>

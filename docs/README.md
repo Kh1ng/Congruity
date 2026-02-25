@@ -10,6 +10,7 @@ This folder accumulated planning notes, review docs, and implementation summarie
 - `ALPHA_SECURITY_AUDIT.md` - Current alpha security hardening summary
 - `DEPLOYMENT_COMPARISON.md` - Hybrid vs full self-hosted tradeoffs
 - `user-stories.md` - Product and UX requirements backlog
+- `UI_SCREENSHOT_EVALUATION.md` - Manual screenshot review matrix/checklist for responsive UI changes
 
 ## Useful, But Planning/Design-Oriented
 

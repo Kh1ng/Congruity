@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
+// import ServerSettings from "./ServerSettings"; // Temporarily disabled for debugging
 
 const CUSTOM_THEME_FIELDS = [
   { key: "bg", label: "Background" },
@@ -14,7 +15,7 @@ const CUSTOM_THEME_FIELDS = [
   { key: "accent-2", label: "Accent 2" },
 ];
 
-function AccountSettings({ serverId }) {
+function AccountSettings({ serverId, showAppearanceSection = true }) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -116,7 +117,14 @@ function AccountSettings({ serverId }) {
   return (
     <div className="mt-6 border-t border-theme pt-4">
       <h3 className="mb-2 text-sm font-semibold text-theme">Account</h3>
-      <div className="mb-3 rounded border border-theme bg-theme-surface-alt/40 p-3">
+      
+      {/* Server Configuration Section - Temporarily disabled */}
+      {/* <div className="mb-4">
+        <ServerSettings />
+      </div> */}
+
+      {showAppearanceSection && (
+        <div className="mb-3 rounded border border-theme bg-theme-surface-alt/40 p-3">
         <label className="text-xs font-semibold text-theme-muted">Theme preset</label>
         <select
           value={theme}
@@ -156,7 +164,8 @@ function AccountSettings({ serverId }) {
             </button>
           </div>
         )}
-      </div>
+        </div>
+      )}
       <form onSubmit={handleSave} className="space-y-2">
         <input
           type="text"

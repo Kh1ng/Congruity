@@ -1,10 +1,12 @@
 import React from "react";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import ServerList from "./ServerList";
 
 const createServerMock = vi.fn();
 const joinServerMock = vi.fn();
+const leaveServerMock = vi.fn();
+const deleteServerMock = vi.fn();
 
 let serversValue = [
   { id: "1", name: "Alpha", description: "Test server" },
@@ -18,10 +20,35 @@ vi.mock("@/hooks", () => ({
     error: null,
     createServer: createServerMock,
     joinServer: joinServerMock,
+    leaveServer: leaveServerMock,
+    deleteServer: deleteServerMock,
   }),
 }));
 
 describe("ServerList", () => {
+  const confirmSpy = vi.spyOn(window, "confirm");
+
+  beforeEach(() => {
+    createServerMock.mockReset();
+    joinServerMock.mockReset();
+    leaveServerMock.mockReset();
+    deleteServerMock.mockReset();
+    confirmSpy.mockReset();
+    confirmSpy.mockReturnValue(true);
+    if (typeof localStorage.removeItem === "function") {
+      localStorage.removeItem("congruity_direct_servers");
+    }
+    serversValue = [
+      {
+        id: "1",
+        name: "Alpha",
+        description: "Test server",
+        server_members: [{ role: "owner" }],
+      },
+      { id: "2", name: "Beta", server_members: [{ role: "member" }] },
+    ];
+  });
+
   it("renders servers", () => {
     render(<ServerList />);
     expect(screen.getByText("Alpha")).toBeInTheDocument();
@@ -34,11 +61,7 @@ describe("ServerList", () => {
     render(<ServerList />);
     expect(screen.getByText(/no servers yet/i)).toBeInTheDocument();
 
-    // reset
-    serversValue = [
-      { id: "1", name: "Alpha", description: "Test server" },
-      { id: "2", name: "Beta" },
-    ];
+    // reset in beforeEach
   });
 
   it("create server", async () => {
@@ -95,5 +118,49 @@ describe("ServerList", () => {
       }),
     );
     expect(screen.getByText("Direct (localhost:3301)")).toBeInTheDocument();
+  });
+
+  it("leaves a non-owned server", async () => {
+    render(<ServerList />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Leave" }));
+    });
+
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(leaveServerMock).toHaveBeenCalledWith("2");
+    expect(deleteServerMock).not.toHaveBeenCalled();
+  });
+
+  it("deletes an owned server", async () => {
+    render(<ServerList />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    });
+
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(deleteServerMock).toHaveBeenCalledWith("1");
+    expect(leaveServerMock).not.toHaveBeenCalled();
+  });
+
+  it("removes a direct pseudo-server locally", async () => {
+    render(<ServerList />);
+
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText("Invite code"), {
+        target: { value: "ws://localhost:3301" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: /join/i }));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+    });
+
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(screen.queryByText("Direct (localhost:3301)")).not.toBeInTheDocument();
+    expect(leaveServerMock).not.toHaveBeenCalled();
+    expect(deleteServerMock).not.toHaveBeenCalled();
   });
 });

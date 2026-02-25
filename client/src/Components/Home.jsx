@@ -11,12 +11,23 @@ import SettingsView from "./SettingsView";
 import AppShell from "./AppShell";
 import { registerPanel, listPanelsByDock } from "../modules";
 import { isDirectServer } from "@/lib/directConnect";
+import {
+  DEFAULT_UI_PREFS,
+  loadUiPrefs,
+  normalizeUiPrefs,
+  resolveResponsiveLayout,
+  saveUiPrefs,
+} from "@/lib/uiLayout";
 
 function Home() {
   const [selectedServer, setSelectedServer] = useState(null);
   const [selectedChannel, setSelectedChannel] = useState(null);
   const [activeVoiceChannel, setActiveVoiceChannel] = useState(null);
   const [collapseSocial, setCollapseSocial] = useState(true);
+  const [uiPrefs, setUiPrefs] = useState(DEFAULT_UI_PREFS);
+  const [viewportWidth, setViewportWidth] = useState(
+    typeof window !== "undefined" ? window.innerWidth : 1440,
+  );
 
   const { backend: serverBackend } = useServerBackend(selectedServer?.id);
   const isDirectSelectedServer = isDirectServer(selectedServer);
@@ -35,8 +46,27 @@ function Home() {
   }, []);
 
   useEffect(() => {
+    setUiPrefs(loadUiPrefs());
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem("settingsDockCollapsed", String(collapseSocial));
   }, [collapseSocial]);
+
+  useEffect(() => {
+    saveUiPrefs(uiPrefs);
+  }, [uiPrefs]);
+
+  useEffect(() => {
+    const onResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const responsiveLayout = useMemo(
+    () => resolveResponsiveLayout(viewportWidth),
+    [viewportWidth],
+  );
 
   const renderChannelPanel = useMemo(() => {
     if (!selectedChannel) return <Messages channelId={null} />;
@@ -52,25 +82,61 @@ function Home() {
     return <Messages channelId={selectedChannel.id} memberMap={memberMap} />;
   }, [selectedChannel, voiceSession, memberMap]);
 
-  const leftDockWidth = "minmax(250px, 22vw)";
-  const rightDockWidth = collapseSocial ? "0px" : "minmax(260px, 24vw)";
+  const normalizedUiPrefs = useMemo(() => normalizeUiPrefs(uiPrefs), [uiPrefs]);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      "--ui-panel-opacity",
+      String(normalizedUiPrefs.panelOpacity),
+    );
+    document.documentElement.style.setProperty(
+      "--ui-bg-opacity",
+      String(normalizedUiPrefs.appBackgroundOpacity),
+    );
+  }, [normalizedUiPrefs.appBackgroundOpacity, normalizedUiPrefs.panelOpacity]);
+  const effectiveLeftDockWidth = Math.min(
+    normalizedUiPrefs.widths.serverDock,
+    responsiveLayout.serverDockMax,
+  );
+  const effectiveRightDockWidth = Math.min(
+    normalizedUiPrefs.widths.memberPanel,
+    responsiveLayout.memberDockMax || normalizedUiPrefs.widths.memberPanel,
+  );
+  const isRightDockCollapsed = collapseSocial || responsiveLayout.collapseMembers;
+  const useMobileStack = responsiveLayout.mobileStack;
+
+  const leftDockWidth = `minmax(220px, ${effectiveLeftDockWidth}px)`;
+  const rightDockWidth = isRightDockCollapsed
+    ? "0px"
+    : `minmax(220px, ${effectiveRightDockWidth}px)`;
 
   const layoutPreset = useMemo(
     () => ({
       id: "home-default",
-      root: {
-        type: "split",
-        direction: "horizontal",
-        gap: 12,
-        sizes: [leftDockWidth, "1fr", rightDockWidth],
-        children: [
-          { type: "region", id: "leftDock" },
-          { type: "region", id: "workspace" },
-          { type: "region", id: "rightDock" },
-        ],
-      },
+      root: useMobileStack
+        ? {
+            type: "split",
+            direction: "vertical",
+            gap: 8,
+            sizes: ["minmax(220px, 36dvh)", "1fr"],
+            children: [
+              { type: "region", id: "mobileSidebar" },
+              { type: "region", id: "workspace" },
+            ],
+          }
+        : {
+            type: "split",
+            direction: "horizontal",
+            gap: 10,
+            sizes: [leftDockWidth, "1fr", rightDockWidth],
+            children: [
+              { type: "region", id: "leftDock" },
+              { type: "region", id: "workspace" },
+              { type: "region", id: "rightDock" },
+            ],
+          },
     }),
-    [leftDockWidth, rightDockWidth],
+    [leftDockWidth, rightDockWidth, useMobileStack],
   );
 
   const leftPanels = useMemo(() => {
@@ -157,6 +223,8 @@ function Home() {
           serverId={selectedServer?.id}
           voice={voiceSession}
           voiceChannel={activeVoiceChannel}
+          uiPrefs={normalizedUiPrefs}
+          onUiPrefsChange={setUiPrefs}
         />
       ),
     });
@@ -164,12 +232,22 @@ function Home() {
     return listPanelsByDock("right");
   }, [
     activeVoiceChannel,
+    normalizedUiPrefs,
     selectedServer,
     voiceSession,
   ]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div
+      className={`flex h-full min-h-0 flex-col ${
+        normalizedUiPrefs.density === "compact" ? "text-[13px]" : ""
+      }`}
+      style={{
+        ["--ui-panel-opacity"]: normalizedUiPrefs.panelOpacity,
+        ["--ui-bg-opacity"]: normalizedUiPrefs.appBackgroundOpacity,
+      }}
+      data-breakpoint={responsiveLayout.breakpoint}
+    >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
           <div className="text-lg font-semibold text-theme">
@@ -186,7 +264,7 @@ function Home() {
             className="inline-flex items-center gap-1.5 hover:text-theme-accent"
           >
             <Settings size={14} />
-            {collapseSocial ? "Settings" : "Close settings"}
+            {isRightDockCollapsed ? "Settings" : "Close settings"}
           </button>
         </div>
       </div>
@@ -196,7 +274,7 @@ function Home() {
           layout={layoutPreset}
           regions={{
             leftDock: (
-              <aside className="rounded border border-theme bg-theme-surface p-2 min-h-0 h-full">
+              <aside className={`ui-panel-surface rounded border border-theme p-2 min-h-0 h-full ${responsiveLayout.collapseChannels ? "hidden md:block" : ""}`}>
                 <DockStack
                   dockId="left"
                   panels={leftPanels}
@@ -204,16 +282,21 @@ function Home() {
                 />
               </aside>
             ),
+            mobileSidebar: (
+              <section className="ui-panel-surface rounded border border-theme p-2 min-h-0 overflow-hidden">
+                <DockStack dockId="left-mobile" panels={leftPanels} locked />
+              </section>
+            ),
             workspace: (
-              <main className="rounded border border-theme bg-theme-surface p-3 flex flex-col min-h-0">
+              <main className="ui-panel-surface rounded border border-theme p-2 sm:p-3 flex flex-col min-h-0">
                 {renderChannelPanel}
               </main>
             ),
             rightDock: (
               <aside
-                className={`min-h-0 h-full ${collapseSocial ? "hidden" : "rounded border border-theme bg-theme-surface p-2"}`}
+                className={`min-h-0 h-full ${isRightDockCollapsed ? "hidden" : "ui-panel-surface rounded border border-theme p-2"}`}
               >
-                {!collapseSocial && (
+                {!isRightDockCollapsed && (
                   <DockStack
                     dockId="right"
                     panels={rightPanels}
