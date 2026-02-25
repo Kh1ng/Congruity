@@ -2,6 +2,21 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { isDirectServerId } from "@/lib/directConnect";
 
+let serverBackendsTableUnsupported = false;
+
+const isMissingServerBackendsTable = (fetchError) => {
+  const code = String(fetchError?.code || "");
+  const status = Number(fetchError?.status || fetchError?.statusCode || 0);
+  const message = String(fetchError?.message || "");
+
+  return (
+    code === "PGRST205" ||
+    status === 404 ||
+    message.includes("schema cache") ||
+    message.includes("server_backends")
+  );
+};
+
 export function useServerBackend(serverId) {
   const [backend, setBackend] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -22,6 +37,13 @@ export function useServerBackend(serverId) {
       return;
     }
 
+    if (serverBackendsTableUnsupported) {
+      setBackend(null);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     try {
       setLoading(true);
       const { data, error: fetchError } = await supabase
@@ -34,7 +56,8 @@ export function useServerBackend(serverId) {
 
       if (fetchError) {
         // Cloud projects without the self-host migration return 404 for this table.
-        if (fetchError.code === "PGRST205" || String(fetchError.message || "").includes("404")) {
+        if (isMissingServerBackendsTable(fetchError)) {
+          serverBackendsTableUnsupported = true;
           setBackend(null);
           setError(null);
           return;
@@ -61,6 +84,10 @@ export function useServerBackend(serverId) {
     error,
     refetch: fetchBackend,
   };
+}
+
+export function __resetServerBackendHookCacheForTests() {
+  serverBackendsTableUnsupported = false;
 }
 
 export default useServerBackend;
