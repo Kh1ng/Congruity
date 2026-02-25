@@ -73,4 +73,27 @@ describe("ServerList", () => {
 
     expect(joinServerMock).toHaveBeenCalledWith("INV123");
   });
+
+  it("direct joins via signaling URL and selects local pseudo-server", async () => {
+    const onSelectServer = vi.fn();
+    render(<ServerList onSelectServer={onSelectServer} />);
+
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText("Invite code"), {
+        target: { value: "ws://localhost:3301" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: /join/i }));
+    });
+
+    expect(joinServerMock).not.toHaveBeenCalledWith("ws://localhost:3301");
+    expect(onSelectServer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isDirect: true,
+        directConfig: expect.objectContaining({
+          signaling_url: "ws://localhost:3301",
+        }),
+      }),
+    );
+    expect(screen.getByText("Direct (localhost:3301)")).toBeInTheDocument();
+  });
 });

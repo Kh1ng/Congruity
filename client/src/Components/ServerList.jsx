@@ -1,7 +1,12 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Cloud, LogIn, Plus, Server as ServerIcon } from "lucide-react";
 import { useServers } from "@/hooks";
 import Spinner from "./Spinner";
+import {
+  loadDirectServers,
+  parseDirectConnectInput,
+  saveDirectServers,
+} from "@/lib/directConnect";
 
 function ServerList({ onSelectServer }) {
   const { servers, loading, error, createServer, joinServer } = useServers();
@@ -12,6 +17,20 @@ function ServerList({ onSelectServer }) {
   const [hostingType, setHostingType] = useState("self_hosted");
   const [createError, setCreateError] = useState(null);
   const [createStep, setCreateStep] = useState(1);
+  const [directServers, setDirectServers] = useState([]);
+
+  useEffect(() => {
+    setDirectServers(loadDirectServers());
+  }, []);
+
+  useEffect(() => {
+    saveDirectServers(directServers);
+  }, [directServers]);
+
+  const combinedServers = useMemo(() => {
+    const localIds = new Set(directServers.map((server) => server.id));
+    return [...directServers, ...servers.filter((server) => !localIds.has(server.id))];
+  }, [directServers, servers]);
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -32,6 +51,17 @@ function ServerList({ onSelectServer }) {
     e.preventDefault();
     if (!inviteCode.trim()) return;
     try {
+      const directServer = parseDirectConnectInput(inviteCode);
+      if (directServer) {
+        setDirectServers((prev) => {
+          const next = [directServer, ...prev.filter((server) => server.id !== directServer.id)];
+          return next;
+        });
+        setSelectedId(directServer.id);
+        onSelectServer?.(directServer);
+        setInviteCode("");
+        return;
+      }
       await joinServer(inviteCode);
       setInviteCode("");
     } catch (err) {
@@ -144,12 +174,15 @@ function ServerList({ onSelectServer }) {
           Join
         </button>
       </form>
+      <div className="mb-3 text-xs text-theme-muted">
+        Invite code or direct URL/link (for self-host): <code>ws://host:3001</code>
+      </div>
 
-      {servers.length === 0 ? (
+      {combinedServers.length === 0 ? (
         <div className="text-slate-400">No servers yet. Create or join one!</div>
       ) : (
         <ul className="space-y-1.5">
-          {servers.map((server) => (
+          {combinedServers.map((server) => (
             <li
               key={server.id}
               className={`border rounded p-2 cursor-pointer hover:border-gruvbox-orange ${
@@ -162,7 +195,14 @@ function ServerList({ onSelectServer }) {
                 onSelectServer?.(server);
               }}
             >
-              <h3 className="font-semibold">{server.name}</h3>
+              <h3 className="font-semibold">
+                {server.name}
+                {server.isDirect && (
+                  <span className="ml-2 text-xs font-normal text-theme-muted">
+                    Direct
+                  </span>
+                )}
+              </h3>
               {server.description && (
                 <p className="text-sm text-slate-400">{server.description}</p>
               )}

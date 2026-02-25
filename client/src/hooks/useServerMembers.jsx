@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { isDirectServerId } from "@/lib/directConnect";
 
 export function useServerMembers(serverId) {
   const [members, setMembers] = useState([]);
@@ -10,6 +11,14 @@ export function useServerMembers(serverId) {
     if (!serverId) {
       setMembers([]);
       setLoading(false);
+      setError(null);
+      return;
+    }
+
+    if (isDirectServerId(serverId)) {
+      setMembers([]);
+      setLoading(false);
+      setError(null);
       return;
     }
 

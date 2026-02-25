@@ -56,6 +56,23 @@ describe("useChannels", () => {
     expect(result.current.voiceChannels).toEqual([]);
   });
 
+  it("uses local override channels for direct servers without hitting supabase", async () => {
+    const directChannels = [
+      { id: "direct-voice", name: "voice-lounge", type: "voice", position: 1 },
+    ];
+    const { result } = renderHook(() =>
+      useChannels("direct:ws://localhost:3301", { channelsOverride: directChannels }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.channels).toEqual(directChannels);
+    expect(result.current.voiceChannels).toHaveLength(1);
+    expect(result.current.textChannels).toEqual([]);
+  });
+
   it("fetches channels for a server", async () => {
     const { result } = renderHook(() => useChannels("srv1"));
 

@@ -10,6 +10,7 @@ import DockStack from "./DockStack";
 import SettingsView from "./SettingsView";
 import AppShell from "./AppShell";
 import { registerPanel, listPanelsByDock } from "../modules";
+import { isDirectServer } from "@/lib/directConnect";
 
 function Home() {
   const [selectedServer, setSelectedServer] = useState(null);
@@ -18,10 +19,14 @@ function Home() {
   const [collapseSocial, setCollapseSocial] = useState(true);
 
   const { backend: serverBackend } = useServerBackend(selectedServer?.id);
+  const isDirectSelectedServer = isDirectServer(selectedServer);
+  const selectedServerId = selectedServer?.id;
+  const selectedServerSignalingUrl =
+    selectedServer?.directConfig?.signaling_url || serverBackend?.signaling_url;
   const voiceSession = useWebRTC(activeVoiceChannel?.id, {
-    signalingUrl: serverBackend?.signaling_url,
+    signalingUrl: selectedServerSignalingUrl,
   });
-  const { memberMap } = useServerMembers(selectedServer?.id);
+  const { memberMap } = useServerMembers(isDirectSelectedServer ? null : selectedServerId);
 
   useEffect(() => {
     const raw = localStorage.getItem("settingsDockCollapsed");
@@ -89,8 +94,9 @@ function Home() {
       order: 2,
       content: (
         <ChannelList
-          serverId={selectedServer?.id}
-          signalingUrl={serverBackend?.signaling_url}
+          serverId={selectedServerId}
+          directChannels={selectedServer?.directConfig?.channels}
+          signalingUrl={selectedServerSignalingUrl}
           selectedChannelId={selectedChannel?.id}
           memberMap={memberMap}
           roomUsers={voiceSession.roomUsers}
@@ -134,8 +140,9 @@ function Home() {
     activeVoiceChannel,
     memberMap,
     selectedChannel?.id,
-    selectedServer?.id,
-    serverBackend?.signaling_url,
+    selectedServerId,
+    selectedServer?.directConfig?.channels,
+    selectedServerSignalingUrl,
     voiceSession,
   ]);
 

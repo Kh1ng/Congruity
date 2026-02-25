@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { isDirectServerId } from "@/lib/directConnect";
 
 export function useServerBackend(serverId) {
   const [backend, setBackend] = useState(null);
@@ -10,6 +11,14 @@ export function useServerBackend(serverId) {
     if (!serverId) {
       setBackend(null);
       setLoading(false);
+      setError(null);
+      return;
+    }
+
+    if (isDirectServerId(serverId)) {
+      setBackend(null);
+      setLoading(false);
+      setError(null);
       return;
     }
 

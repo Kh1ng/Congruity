@@ -6,6 +6,7 @@ import Avatar from "./Avatar";
 
 function ChannelList({
   serverId,
+  directChannels,
   signalingUrl,
   selectedChannelId,
   memberMap,
@@ -16,7 +17,7 @@ function ChannelList({
   onSelectChannel,
 }) {
   const { textChannels, voiceChannels, videoChannels, loading, error } =
-    useChannels(serverId);
+    useChannels(serverId, { channelsOverride: directChannels });
   const [presenceByRoom, setPresenceByRoom] = useState({});
 
   const presenceUrl = useMemo(() => {

@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import { isDirectServerId } from "@/lib/directConnect";
 
 /**
  * Hook for managing channels in a server
  * @param {string} serverId - The server to load channels for
  */
-export function useChannels(serverId) {
+export function useChannels(serverId, options = {}) {
+  const { channelsOverride = [] } = options;
   const [channels, setChannels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -13,8 +15,16 @@ export function useChannels(serverId) {
   // Fetch channels for the server
   const fetchChannels = useCallback(async () => {
     if (!serverId) {
-      setChannels([]);
+      setChannels(channelsOverride || []);
       setLoading(false);
+      setError(null);
+      return;
+    }
+
+    if (isDirectServerId(serverId)) {
+      setChannels(channelsOverride || []);
+      setLoading(false);
+      setError(null);
       return;
     }
 
@@ -35,7 +45,7 @@ export function useChannels(serverId) {
     } finally {
       setLoading(false);
     }
-  }, [serverId]);
+  }, [channelsOverride, serverId]);
 
   useEffect(() => {
     fetchChannels();
