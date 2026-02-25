@@ -13,11 +13,12 @@ This folder accumulated planning notes, review docs, and implementation summarie
 
 ## Useful, But Planning/Design-Oriented
 
-- `CLIENT_RUNTIME_CONFIG_DESIGN.md` - Runtime config/wizard design proposal
-- `RUNTIME_CONFIG_TESTING.md` - Test scenarios for runtime config work
-- `RUNTIME_CONFIG_SUMMARY.md` - Implementation summary for runtime config work
+- `archive/CLIENT_RUNTIME_CONFIG_DESIGN.md` - Runtime config/wizard design proposal
+- `archive/RUNTIME_CONFIG_TESTING.md` - Test scenarios for runtime config work
+- `archive/RUNTIME_CONFIG_SUMMARY.md` - Implementation summary for runtime config work
 - `ALPHA_CLIENT_BUILD_GUIDE.md` - Detailed build guide (superseded in part by `ALPHA_RELEASE.md`)
-- `ALPHA_READINESS_REVIEW.md` - Broad readiness review (historical snapshot)
+- `archive/ALPHA_READINESS_REVIEW.md` - Broad readiness review (historical snapshot)
+- `archive/ALPHA_LAUNCH_CHECKLIST.md` - Historical implementation checklist
 
 ## Removed Redundant Summaries
 
@@ -31,3 +32,4 @@ These were condensed status summaries and overlapped heavily with the docs above
 - If a doc is a point-in-time review, label it clearly as historical in the title.
 - Keep `README.md` at repo root aligned with the current alpha workflow and direct-connect behavior.
 - Keep self-host docs aligned with actual `docker/setup.sh` behavior and generated file names.
+- Keep planning docs in `docs/archive/` unless they are active execution docs.
