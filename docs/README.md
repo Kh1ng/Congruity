@@ -4,8 +4,8 @@ This folder accumulated planning notes, review docs, and implementation summarie
 
 ## Current / Primary
 
-- `SELF_HOSTING_GUIDE.md` - Main self-hosting guide (hybrid + full self-hosted)
-- `SETUP_WORKFLOW.md` - Step-by-step setup flow and troubleshooting
+- `SELF_HOSTING_GUIDE.md` - Canonical self-hosting guide (direct-connect, hybrid, full self-hosted)
+- `SETUP_WORKFLOW.md` - Short step-by-step workflow for alpha setup (including direct-connect path)
 - `ALPHA_RELEASE.md` - Build/release playbook (desktop + mobile)
 - `ALPHA_SECURITY_AUDIT.md` - Current alpha security hardening summary
 - `DEPLOYMENT_COMPARISON.md` - Hybrid vs full self-hosted tradeoffs
@@ -30,3 +30,4 @@ These were condensed status summaries and overlapped heavily with the docs above
 - Prefer updating the primary docs above instead of creating another summary file.
 - If a doc is a point-in-time review, label it clearly as historical in the title.
 - Keep `README.md` at repo root aligned with the current alpha workflow and direct-connect behavior.
+- Keep self-host docs aligned with actual `docker/setup.sh` behavior and generated file names.
