@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import AccountSettings from "./AccountSettings";
 import { useTheme } from "@/hooks/useTheme";
+import { useServers } from "@/hooks";
 
 const TAB_OPTIONS = [
   { id: "application", label: "Application" },
@@ -8,8 +9,17 @@ const TAB_OPTIONS = [
   { id: "server", label: "Server" },
 ];
 
-function SettingsView({ server, serverId, voice, voiceChannel, uiPrefs, onUiPrefsChange }) {
+function SettingsView({
+  server,
+  serverId,
+  voice,
+  voiceChannel,
+  uiPrefs,
+  onUiPrefsChange,
+  onServerRemoved,
+}) {
   const [activeTab, setActiveTab] = useState("application");
+  const [serverActionState, setServerActionState] = useState({ saving: false, error: null });
   const {
     theme,
     setTheme,
@@ -18,6 +28,7 @@ function SettingsView({ server, serverId, voice, voiceChannel, uiPrefs, onUiPref
     setCustomColor,
     resetCustomPalette,
   } = useTheme();
+  const { leaveServer, deleteServer } = useServers();
   const video = voice?.videoConstraints || { width: 1280, height: 720, frameRate: 30 };
   const screen = voice?.screenConstraints || { width: 1920, height: 1080, frameRate: 30 };
   const panelOpacityPct = Math.round((uiPrefs?.panelOpacity || 0.92) * 100);
@@ -42,6 +53,34 @@ function SettingsView({ server, serverId, voice, voiceChannel, uiPrefs, onUiPref
         ...(patch?.widths || {}),
       },
     }));
+  };
+
+  const isOwnedServer = Boolean(
+    server?.server_members?.some((member) => member?.role === "owner") ||
+      server?.is_owner === true,
+  );
+
+  const handleServerLeaveOrDelete = async () => {
+    if (!server || server.isDirect) return;
+    const actionLabel = isOwnedServer ? "delete" : "leave";
+    if (!window.confirm(`Are you sure you want to ${actionLabel} "${server.name}"?`)) return;
+
+    setServerActionState({ saving: true, error: null });
+    try {
+      if (isOwnedServer) {
+        await deleteServer(server.id);
+      } else {
+        await leaveServer(server.id);
+      }
+      onServerRemoved?.(server);
+    } catch (err) {
+      setServerActionState({
+        saving: false,
+        error: err.message || `Unable to ${actionLabel} server`,
+      });
+      return;
+    }
+    setServerActionState({ saving: false, error: null });
   };
 
   const themeFields = useMemo(
@@ -341,6 +380,31 @@ function SettingsView({ server, serverId, voice, voiceChannel, uiPrefs, onUiPref
                   metadata and invites will be expanded here next.
                 </p>
               </div>
+              {!server.isDirect && (
+                <div className="rounded border border-theme bg-theme-surface/40 p-3">
+                  <div className="text-xs font-semibold text-theme-muted">Membership</div>
+                  <p className="mt-1 text-xs text-theme-muted">
+                    {isOwnedServer
+                      ? "You are the owner of this server."
+                      : "Leave this server from here."}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleServerLeaveOrDelete}
+                    disabled={serverActionState.saving}
+                    className="mt-3 rounded border border-theme px-3 py-1.5 text-xs text-theme-muted hover:text-theme-accent disabled:opacity-50"
+                  >
+                    {serverActionState.saving
+                      ? "Working..."
+                      : isOwnedServer
+                        ? "Delete Server"
+                        : "Leave Server"}
+                  </button>
+                  {serverActionState.error && (
+                    <div className="mt-2 text-xs text-red-400">{serverActionState.error}</div>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <div className="mt-2 text-xs text-theme-muted">

@@ -225,6 +225,11 @@ function Home() {
           voiceChannel={activeVoiceChannel}
           uiPrefs={normalizedUiPrefs}
           onUiPrefsChange={setUiPrefs}
+          onServerRemoved={() => {
+            setSelectedServer(null);
+            setSelectedChannel(null);
+            setActiveVoiceChannel(null);
+          }}
         />
       ),
     });

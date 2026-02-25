@@ -120,28 +120,11 @@ describe("ServerList", () => {
     expect(screen.getByText("Direct (localhost:3301)")).toBeInTheDocument();
   });
 
-  it("leaves a non-owned server", async () => {
+  it("does not show leave/delete actions for cloud servers in the list", async () => {
     render(<ServerList />);
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Leave" }));
-    });
-
-    expect(confirmSpy).toHaveBeenCalled();
-    expect(leaveServerMock).toHaveBeenCalledWith("2");
-    expect(deleteServerMock).not.toHaveBeenCalled();
-  });
-
-  it("deletes an owned server", async () => {
-    render(<ServerList />);
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Delete" }));
-    });
-
-    expect(confirmSpy).toHaveBeenCalled();
-    expect(deleteServerMock).toHaveBeenCalledWith("1");
-    expect(leaveServerMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Leave" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+    expect(screen.getAllByText(/manage in server settings/i).length).toBeGreaterThan(0);
   });
 
   it("removes a direct pseudo-server locally", async () => {

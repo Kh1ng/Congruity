@@ -1,9 +1,11 @@
 import React from "react";
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import SettingsView from "./SettingsView";
 
 const setThemeMock = vi.fn();
+const leaveServerMock = vi.fn();
+const deleteServerMock = vi.fn();
 
 vi.mock("@/hooks/useTheme", () => ({
   useTheme: () => ({
@@ -29,6 +31,13 @@ vi.mock("@/hooks/useTheme", () => ({
   }),
 }));
 
+vi.mock("@/hooks", () => ({
+  useServers: () => ({
+    leaveServer: leaveServerMock,
+    deleteServer: deleteServerMock,
+  }),
+}));
+
 vi.mock("./AccountSettings", () => ({
   default: ({ serverId, showAppearanceSection }) => (
     <div data-testid="account-settings">
@@ -38,6 +47,15 @@ vi.mock("./AccountSettings", () => ({
 }));
 
 describe("SettingsView", () => {
+  const confirmSpy = vi.spyOn(window, "confirm");
+
+  beforeEach(() => {
+    leaveServerMock.mockReset();
+    deleteServerMock.mockReset();
+    confirmSpy.mockReset();
+    confirmSpy.mockReturnValue(true);
+  });
+
   it("splits settings into application/account/server tabs", () => {
     render(
       <SettingsView
@@ -98,5 +116,28 @@ describe("SettingsView", () => {
       widths: { serverDock: 260, memberPanel: 240 },
     });
   });
-});
 
+  it("shows leave server action in server settings for non-owner members", async () => {
+    const onServerRemoved = vi.fn();
+    render(
+      <SettingsView
+        server={{ id: "s2", name: "Beta", hosting_type: "self_hosted", server_members: [{ role: "member" }] }}
+        serverId="s2"
+        voice={{}}
+        uiPrefs={{ panelOpacity: 0.9, appBackgroundOpacity: 1, density: "normal", widths: { serverDock: 280, memberPanel: 300 } }}
+        onUiPrefsChange={vi.fn()}
+        onServerRemoved={onServerRemoved}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Server" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Leave Server" }));
+    });
+
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(leaveServerMock).toHaveBeenCalledWith("s2");
+    expect(deleteServerMock).not.toHaveBeenCalled();
+    expect(onServerRemoved).toHaveBeenCalled();
+  });
+});
