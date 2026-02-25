@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { useChannels } from "./useChannels";
+import { supabase } from "@/lib/supabase";
 
 // Mock Supabase
 vi.mock("@/lib/supabase", () => ({
@@ -85,6 +86,47 @@ describe("useChannels", () => {
     expect(result.current.channels).toHaveLength(2);
     expect(result.current.textChannels).toHaveLength(1);
     expect(result.current.voiceChannels).toHaveLength(1);
+    expect(result.current.error).toBe(null);
+  });
+
+  it("does not refetch repeatedly on rerender with same non-direct server props", async () => {
+    const fromSpy = vi.spyOn(supabase, "from");
+    const { result, rerender } = renderHook(
+      ({ serverId }) => useChannels(serverId),
+      { initialProps: { serverId: "srv1" } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    const initialCalls = fromSpy.mock.calls.length;
+    rerender({ serverId: "srv1" });
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(fromSpy.mock.calls.length).toBe(initialCalls);
+  });
+
+  it("ignores aborted fetch errors without surfacing channel error state", async () => {
+    const abortingOrder = vi.fn(() =>
+      Promise.reject({
+        message: "AbortError: The operation was aborted.",
+        hint: "Request was aborted (timeout or manual cancellation)",
+      }),
+    );
+    const abortingEq = vi.fn(() => ({ order: abortingOrder }));
+    const abortingSelect = vi.fn(() => ({ eq: abortingEq }));
+    supabase.from.mockImplementationOnce(() => ({ select: abortingSelect }));
+
+    const { result } = renderHook(() => useChannels("srv1"));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
     expect(result.current.error).toBe(null);
   });
 

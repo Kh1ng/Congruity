@@ -2,12 +2,26 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { isDirectServerId } from "@/lib/directConnect";
 
+const EMPTY_CHANNELS = [];
+
+function isAbortLikeError(err) {
+  const message = String(err?.message || "");
+  const hint = String(err?.hint || "");
+  return (
+    err?.name === "AbortError" ||
+    message.includes("AbortError") ||
+    hint.includes("Request was aborted")
+  );
+}
+
 /**
  * Hook for managing channels in a server
  * @param {string} serverId - The server to load channels for
  */
 export function useChannels(serverId, options = {}) {
-  const { channelsOverride = [] } = options;
+  const channelsOverride = Array.isArray(options?.channelsOverride)
+    ? options.channelsOverride
+    : null;
   const [channels, setChannels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -15,14 +29,14 @@ export function useChannels(serverId, options = {}) {
   // Fetch channels for the server
   const fetchChannels = useCallback(async () => {
     if (!serverId) {
-      setChannels(channelsOverride || []);
+      setChannels(channelsOverride || EMPTY_CHANNELS);
       setLoading(false);
       setError(null);
       return;
     }
 
     if (isDirectServerId(serverId)) {
-      setChannels(channelsOverride || []);
+      setChannels(channelsOverride || EMPTY_CHANNELS);
       setLoading(false);
       setError(null);
       return;
@@ -40,6 +54,9 @@ export function useChannels(serverId, options = {}) {
       setChannels(data || []);
       setError(null);
     } catch (err) {
+      if (isAbortLikeError(err)) {
+        return;
+      }
       console.error("Error fetching channels:", err);
       setError(err.message);
     } finally {
