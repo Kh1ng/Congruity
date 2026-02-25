@@ -5,8 +5,8 @@
   "identifier": "dev.congruity.app",
   "build": {
     "frontendDist": "../dist",
-    "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "npm run dev",
+    "devUrl": null,
+    "beforeDevCommand": "npm run build -- --watch",
     "beforeBuildCommand": "npm run build"
   },
   "app": {

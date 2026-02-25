@@ -53,6 +53,16 @@ assert_contains() {
   fi
 }
 
+assert_string_contains() {
+  local haystack="$1"
+  local needle="$2"
+  local label="$3"
+  if [[ "${haystack}" != *"${needle}"* ]]; then
+    fail "${label} (missing '${needle}')"
+    return 1
+  fi
+}
+
 assert_status() {
   local actual="$1"
   local expected="$2"
@@ -259,9 +269,25 @@ test_bash_syntax() {
   fi
 }
 
+test_compose_file_has_required_services() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  local compose_file
+  compose_file="${DOCKER_DIR}/docker-compose.yml"
+
+  assert_file_exists "${compose_file}" "docker compose file exists" || return 1
+  assert_contains "${compose_file}" "minio:" "compose defines MinIO service" || return 1
+  assert_contains "${compose_file}" "signaling:" "compose defines signaling service" || return 1
+  assert_contains "${compose_file}" "kong:" "compose defines Kong service" || return 1
+  assert_contains "${compose_file}" "minio-init:" "compose defines MinIO init job" || return 1
+  assert_contains "${compose_file}" "context: ../server" "compose builds signaling from server Dockerfile" || return 1
+
+  pass "docker compose file includes required self-host services"
+}
+
 test_compose_config_optional() {
   TESTS_RUN=$((TESTS_RUN + 1))
   local fixture
+  local services resolved
   fixture=$(make_fixture)
 
   if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
@@ -271,27 +297,34 @@ test_compose_config_optional() {
 
   (
     cd "${fixture}/docker"
-    PATH="${fixture}/bin:${PATH}" \
     DEPLOY_MODE=2 \
-    SITE_URL="http://localhost:5173" \
-    API_URL="http://localhost:8000" \
-    SELFHOSTED_PUBLIC_HOST="localhost" \
-    MINIO_BUCKET="local-media" \
-    DASHBOARD_USER="admin" \
-    DASHBOARD_PASS="pw" \
-    POSTGRES_PASSWORD="pg-pass" \
-    JWT_SECRET="jwt-secret" \
-    SECRET_KEY_BASE="secret-key-base" \
-    MINIO_ROOT_PASSWORD="minio-root-pass" \
-    bash ./setup.sh --configure-only --non-interactive >/dev/null 2>&1
-    docker compose config >/dev/null
-  )
+      SITE_URL="http://localhost:5173" \
+      API_URL="http://localhost:8000" \
+      SELFHOSTED_PUBLIC_HOST="localhost" \
+      MINIO_BUCKET="local-media" \
+      DASHBOARD_USER="admin" \
+      DASHBOARD_PASS="pw" \
+      POSTGRES_PASSWORD="pg-pass" \
+      JWT_SECRET="jwt-secret" \
+      SECRET_KEY_BASE="secret-key-base" \
+      MINIO_ROOT_PASSWORD="minio-root-pass" \
+      bash ./setup.sh --configure-only --non-interactive --skip-prereq-checks >/dev/null 2>&1
 
-  pass "docker compose config smoke"
+    services=$(docker compose config --services)
+    resolved=$(docker compose config)
+
+    assert_string_contains "${services}" "signaling" "compose services include signaling" || exit 1
+    assert_string_contains "${services}" "minio" "compose services include minio" || exit 1
+    assert_string_contains "${services}" "kong" "compose services include kong" || exit 1
+    assert_string_contains "${resolved}" "CORS_ORIGIN: http://localhost:5173" "resolved compose config wires signaling CORS to SITE_URL" || exit 1
+  ) || return 1
+
+  pass "docker compose config smoke + service assertions"
 }
 
 main() {
   test_bash_syntax || true
+  test_compose_file_has_required_services || true
   test_cloud_mode_configure_only || true
   test_local_mode_generates_kong || true
   test_cloud_mode_requires_supabase_url || true
