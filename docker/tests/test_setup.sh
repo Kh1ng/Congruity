@@ -100,12 +100,38 @@ if [ "$1" = "compose" ] && [ "$2" = "version" ]; then
   echo "Docker Compose version v2.test"
   exit 0
 fi
+if [ "$1" = "info" ]; then
+  echo "Server Version: test"
+  exit 0
+fi
 echo "stub docker $*" >&2
 exit 0
 EOF
   chmod +x "${tmp}/bin/docker"
 
   printf '%s\n' "${tmp}"
+}
+
+make_fixture_with_port_conflict() {
+  local fixture
+  fixture=$(make_fixture)
+
+  cat > "${fixture}/bin/lsof" <<'EOF'
+#!/usr/bin/env sh
+case "$*" in
+  *"-iTCP:3001"*)
+    echo "COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME"
+    echo "node 123 test 1u IPv4 0 0 TCP *:3001 (LISTEN)"
+    exit 0
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+EOF
+  chmod +x "${fixture}/bin/lsof"
+
+  printf '%s\n' "${fixture}"
 }
 
 run_setup_capture() {
@@ -259,6 +285,33 @@ EOF
   pass "non-interactive skip reconfigure path"
 }
 
+test_runtime_preflight_fails_on_port_conflict() {
+  TESTS_RUN=$((TESTS_RUN + 1))
+  local fixture output
+  fixture=$(make_fixture_with_port_conflict)
+  output="${fixture}/port-conflict.out"
+
+  run_setup_capture "${fixture}" "${output}" \
+    env \
+      DEPLOY_MODE=1 \
+      SITE_URL="http://localhost:5173" \
+      API_URL="https://alpha.supabase.co" \
+      SELFHOSTED_PUBLIC_HOST="localhost" \
+      MINIO_BUCKET="alpha-media" \
+      DASHBOARD_USER="admin" \
+      DASHBOARD_PASS="pw" \
+      POSTGRES_PASSWORD="pg-pass" \
+      JWT_SECRET="jwt-secret" \
+      SECRET_KEY_BASE="secret-key-base" \
+      MINIO_ROOT_PASSWORD="minio-root-pass" \
+      bash ./setup.sh --non-interactive
+
+  assert_status "${RUN_STATUS}" 1 "runtime preflight fails when signaling port is in use" || return 1
+  assert_contains "${output}" "Signaling port 3001 is already in use" "preflight reports conflicting signaling port" || return 1
+
+  pass "runtime preflight detects port conflict"
+}
+
 test_bash_syntax() {
   TESTS_RUN=$((TESTS_RUN + 1))
   if bash -n "${DOCKER_DIR}/setup.sh"; then
@@ -329,6 +382,7 @@ main() {
   test_local_mode_generates_kong || true
   test_cloud_mode_requires_supabase_url || true
   test_noninteractive_can_skip_reconfigure_existing_env || true
+  test_runtime_preflight_fails_on_port_conflict || true
   test_compose_config_optional || true
 
   echo

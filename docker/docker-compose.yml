@@ -4,12 +4,10 @@
 # - WebRTC Signaling Server
 # - Nginx reverse proxy
 
-version: "3.8"
-
 services:
   # MinIO object storage for self-hosted media assets
   minio:
-    image: minio/minio:RELEASE.2026-01-31T00-00-00Z
+    image: minio/minio:latest
     container_name: congruity-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -24,7 +22,7 @@ services:
       - minio-data:/data
 
   minio-init:
-    image: minio/mc:RELEASE.2026-01-31T00-00-00Z
+    image: minio/mc:latest
     container_name: congruity-minio-init
     depends_on:
       - minio

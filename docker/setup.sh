@@ -58,7 +58,16 @@ else
         exit 1
     fi
 
-    echo -e "${GREEN}✓ Docker and Docker Compose found${NC}"
+echo -e "${GREEN}✓ Docker and Docker Compose found${NC}"
+fi
+
+if [ "${SKIP_PREREQ_CHECKS}" != "true" ]; then
+    if ! docker info > /dev/null 2>&1; then
+        echo -e "${RED}Error: Docker daemon is not reachable${NC}"
+        echo "Please start Docker Desktop / dockerd and try again."
+        exit 1
+    fi
+    echo -e "${GREEN}✓ Docker daemon is reachable${NC}"
 fi
 
 # Check if .env exists
@@ -323,7 +332,29 @@ fi
 
 echo -e "${GREEN}✓ Directories and configurations created${NC}"
 
+check_port_available() {
+  local port="$1"
+  local label="$2"
+  if command -v lsof > /dev/null 2>&1 && lsof -nP -iTCP:"${port}" -sTCP:LISTEN > /dev/null 2>&1; then
+    echo -e "${RED}Error: ${label} port ${port} is already in use${NC}"
+    echo "Stop the conflicting service or change the port in .env, then rerun setup."
+    return 1
+  fi
+  return 0
+}
+
 if [ "$CONFIGURE_ONLY" != "true" ]; then
+  echo -e "\n${YELLOW}Running preflight checks...${NC}"
+  check_port_available "${SIGNALING_PORT:-3001}" "Signaling" || exit 1
+  check_port_available "${MINIO_PORT:-9000}" "MinIO API" || exit 1
+  check_port_available "${MINIO_CONSOLE_PORT:-9001}" "MinIO Console" || exit 1
+  if [ "${USE_LOCAL_SUPABASE}" = "true" ]; then
+    check_port_available "${POSTGRES_PORT:-5432}" "PostgreSQL" || exit 1
+    check_port_available "${API_PORT:-8000}" "Supabase API (Kong)" || exit 1
+    check_port_available "${API_SSL_PORT:-8443}" "Supabase API SSL (Kong)" || exit 1
+  fi
+  echo -e "${GREEN}✓ Port preflight checks passed${NC}"
+
   # Pull images
   echo -e "\n${YELLOW}Pulling Docker images (this may take a while)...${NC}"
   if [ "${USE_LOCAL_SUPABASE}" = "true" ]; then
