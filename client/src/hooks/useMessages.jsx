@@ -2,6 +2,16 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "./useAuth";
 
+function isAbortLikeError(err) {
+  const message = String(err?.message || "");
+  const hint = String(err?.hint || "");
+  return (
+    err?.name === "AbortError" ||
+    message.includes("AbortError") ||
+    hint.includes("Request was aborted")
+  );
+}
+
 /**
  * Hook for managing messages in a channel with realtime updates
  * @param {string} channelId - The channel to load messages for
@@ -37,6 +47,10 @@ export function useMessages(channelId) {
       setMessages(data || []);
       setError(null);
     } catch (err) {
+      if (isAbortLikeError(err)) {
+        setError(null);
+        return;
+      }
       console.error("Error fetching messages:", err);
       setError(err.message);
     } finally {

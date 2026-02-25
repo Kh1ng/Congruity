@@ -6,7 +6,7 @@
   "build": {
     "frontendDist": "../dist",
     "devUrl": null,
-    "beforeDevCommand": "npm run build -- --watch",
+    "beforeDevCommand": "npm run build:watch:ready",
     "beforeBuildCommand": "npm run build"
   },
   "app": {

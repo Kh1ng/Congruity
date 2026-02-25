@@ -41,7 +41,16 @@ describe("Tauri dev configuration regression", () => {
 
     expect(tauriConfig.build.frontendDist).toBe("../dist");
     expect(tauriConfig.build.devUrl).toBeNull();
-    expect(tauriConfig.build.beforeDevCommand).toBe("npm run build -- --watch");
+    expect(tauriConfig.build.beforeDevCommand).toBe("npm run build:watch:ready");
     expect(tauriConfig.build.beforeBuildCommand).toBe("npm run build");
+  });
+
+  it("uses a prebuild-then-watch script so Tauri does not open before dist exists", () => {
+    const packageJsonPath = path.join(repoClientRoot, "package.json");
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+
+    expect(packageJson.scripts["build:watch:ready"]).toBe(
+      "vite build && vite build --watch --emptyOutDir=false",
+    );
   });
 });

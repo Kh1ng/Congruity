@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { useMessages } from "./useMessages";
+import { supabase } from "@/lib/supabase";
 
 // Mock useAuth
 vi.mock("./useAuth", () => ({
@@ -120,5 +121,29 @@ describe("useMessages", () => {
     });
 
     expect(result.current.messages[0].profiles.username).toBe("testuser");
+  });
+
+  it("ignores aborted fetch errors without surfacing an error state", async () => {
+    const abortingLimit = vi.fn(() =>
+      Promise.reject({
+        message: "AbortError: The operation was aborted.",
+        hint: "Request was aborted (timeout or manual cancellation)",
+      }),
+    );
+    const abortingOrder = vi.fn(() => ({ limit: abortingLimit }));
+    const abortingEq = vi.fn(() => ({ order: abortingOrder }));
+    const abortingSelect = vi.fn(() => ({ eq: abortingEq }));
+
+    supabase.from.mockImplementationOnce(() => ({
+      select: abortingSelect,
+    }));
+
+    const { result } = renderHook(() => useMessages("ch-abort"));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.error).toBe(null);
   });
 });
