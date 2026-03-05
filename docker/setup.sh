@@ -58,16 +58,7 @@ else
         exit 1
     fi
 
-echo -e "${GREEN}✓ Docker and Docker Compose found${NC}"
-fi
-
-if [ "${SKIP_PREREQ_CHECKS}" != "true" ]; then
-    if ! docker info > /dev/null 2>&1; then
-        echo -e "${RED}Error: Docker daemon is not reachable${NC}"
-        echo "Please start Docker Desktop / dockerd and try again."
-        exit 1
-    fi
-    echo -e "${GREEN}✓ Docker daemon is reachable${NC}"
+    echo -e "${GREEN}✓ Docker and Docker Compose found${NC}"
 fi
 
 # Check if .env exists
@@ -167,6 +158,19 @@ if [ "$SKIP_CONFIG" != "true" ]; then
     MINIO_BUCKET=${MINIO_BUCKET:-congruity-media}
     MINIO_ROOT_USER=minioadmin
     MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-$(openssl rand -base64 24 | tr -d '\n')}
+    LIVEKIT_API_KEY=${LIVEKIT_API_KEY:-devkey}
+    LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET:-$(openssl rand -hex 24)}
+    TURN_SECRET=${TURN_SECRET:-$(openssl rand -hex 24)}
+    TURN_HOST=${TURN_HOST:-${SELFHOSTED_PUBLIC_HOST}}
+    FEDERATION_SHARED_SECRET=${FEDERATION_SHARED_SECRET:-$(openssl rand -hex 32)}
+    SERVER_DOMAIN=${SERVER_DOMAIN:-${SELFHOSTED_PUBLIC_HOST}}
+
+    if [ "${SELFHOSTED_PUBLIC_HOST}" = "localhost" ] || [ "${SELFHOSTED_PUBLIC_HOST}" = "127.0.0.1" ]; then
+      LIVEKIT_EXTERNAL_URL=${LIVEKIT_EXTERNAL_URL:-ws://localhost:7880}
+    else
+      LIVEKIT_EXTERNAL_URL=${LIVEKIT_EXTERNAL_URL:-wss://${SELFHOSTED_PUBLIC_HOST}:7880}
+    fi
+    LIVEKIT_URL=${LIVEKIT_URL:-ws://livekit:7880}
     
     # Dashboard credentials
     if [ "${NON_INTERACTIVE}" = "true" ]; then
@@ -230,11 +234,24 @@ MINIO_CONSOLE_PORT=9001
 # Self-hosted public endpoints
 SELFHOSTED_PUBLIC_HOST=${SELFHOSTED_PUBLIC_HOST}
 
+# Voice infrastructure
+LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
+LIVEKIT_URL=${LIVEKIT_URL}
+LIVEKIT_EXTERNAL_URL=${LIVEKIT_EXTERNAL_URL}
+TURN_SECRET=${TURN_SECRET}
+TURN_HOST=${TURN_HOST}
+FEDERATION_SHARED_SECRET=${FEDERATION_SHARED_SECRET}
+SERVER_DOMAIN=${SERVER_DOMAIN}
+
 # Ports
 POSTGRES_PORT=5432
 API_PORT=8000
 API_SSL_PORT=8443
 SIGNALING_PORT=3001
+LIVEKIT_HTTP_PORT=7880
+LIVEKIT_TCP_PORT=7881
+LIVEKIT_UDP_PORT=7882
 
 # Auth
 DISABLE_SIGNUP=false
@@ -259,6 +276,37 @@ fi
 echo -e "\n${YELLOW}Creating required directories...${NC}"
 mkdir -p volumes/db/init
 mkdir -p volumes/api
+
+# Create LiveKit and TURN configuration files with generated values
+cat > livekit.yaml <<EOF
+port: 7880
+rtc:
+  tcp_port: 7881
+  udp_port: 7882
+  use_external_ip: true
+turn:
+  enabled: true
+  domain: ${TURN_HOST}
+  tls_port: 5349
+  udp_port: 3478
+  credential: ${TURN_SECRET}
+keys:
+  ${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}
+EOF
+
+cat > turnserver.conf <<EOF
+listening-port=3478
+tls-listening-port=5349
+fingerprint
+lt-cred-mech
+use-auth-secret
+static-auth-secret=${TURN_SECRET}
+realm=congruity
+total-quota=100
+bps-capacity=0
+stale-nonce
+no-multicast-peers
+EOF
 
 if [ "${USE_LOCAL_SUPABASE}" = "true" ]; then
   # Create Kong configuration
@@ -332,28 +380,14 @@ fi
 
 echo -e "${GREEN}✓ Directories and configurations created${NC}"
 
-check_port_available() {
-  local port="$1"
-  local label="$2"
-  if command -v lsof > /dev/null 2>&1 && lsof -nP -iTCP:"${port}" -sTCP:LISTEN > /dev/null 2>&1; then
-    echo -e "${RED}Error: ${label} port ${port} is already in use${NC}"
-    echo "Stop the conflicting service or change the port in .env, then rerun setup."
-    return 1
-  fi
-  return 0
-}
-
 if [ "$CONFIGURE_ONLY" != "true" ]; then
-  echo -e "\n${YELLOW}Running preflight checks...${NC}"
-  check_port_available "${SIGNALING_PORT:-3001}" "Signaling" || exit 1
-  check_port_available "${MINIO_PORT:-9000}" "MinIO API" || exit 1
-  check_port_available "${MINIO_CONSOLE_PORT:-9001}" "MinIO Console" || exit 1
-  if [ "${USE_LOCAL_SUPABASE}" = "true" ]; then
-    check_port_available "${POSTGRES_PORT:-5432}" "PostgreSQL" || exit 1
-    check_port_available "${API_PORT:-8000}" "Supabase API (Kong)" || exit 1
-    check_port_available "${API_SSL_PORT:-8443}" "Supabase API SSL (Kong)" || exit 1
+  if command -v lsof >/dev/null 2>&1; then
+    if lsof -iTCP:${SIGNALING_PORT:-3001} -sTCP:LISTEN -nP >/dev/null 2>&1; then
+      echo -e "${RED}Signaling port ${SIGNALING_PORT:-3001} is already in use${NC}"
+      echo "Stop the conflicting process or set SIGNALING_PORT to a free port in .env."
+      exit 1
+    fi
   fi
-  echo -e "${GREEN}✓ Port preflight checks passed${NC}"
 
   # Pull images
   echo -e "\n${YELLOW}Pulling Docker images (this may take a while)...${NC}"
@@ -468,6 +502,8 @@ cat > QUICKSTART.md << EOF
 **Deployment Mode:** ${USE_LOCAL_SUPABASE}
 **Supabase URL:** ${API_URL}
 **Signaling URL:** ${SIGNALING_PUBLIC_URL}
+**LiveKit URL:** ${LIVEKIT_EXTERNAL_URL}
+**TURN Host:** ${TURN_HOST}
 **MinIO Endpoint:** http://${SELFHOSTED_PUBLIC_HOST}:${MINIO_PORT:-9000}
 **MinIO Console:** http://${SELFHOSTED_PUBLIC_HOST}:${MINIO_CONSOLE_PORT:-9001}
 **MinIO Bucket:** ${MINIO_BUCKET}
@@ -484,6 +520,7 @@ Edit \`client/.env\`:
 VITE_SUPABASE_URL=${API_URL}
 VITE_SUPABASE_ANON_KEY=<get from Supabase dashboard>
 VITE_SIGNALING_URL=${SIGNALING_PUBLIC_URL}
+VITE_LIVEKIT_URL=${LIVEKIT_EXTERNAL_URL}
 \`\`\`
 
 ## Getting Started
@@ -616,6 +653,8 @@ else
   echo -e "  ${YELLOW}Supabase (Cloud):${NC}  ${API_URL}"
 fi
 echo -e "  ${YELLOW}Signaling:${NC}         ${SIGNALING_PUBLIC_URL}"
+echo -e "  ${YELLOW}LiveKit:${NC}           ${LIVEKIT_EXTERNAL_URL}"
+echo -e "  ${YELLOW}TURN Host:${NC}         ${TURN_HOST}:3478"
 echo -e "  ${YELLOW}MinIO API:${NC}         http://${SELFHOSTED_PUBLIC_HOST}:${MINIO_PORT:-9000}"
 echo -e "  ${YELLOW}MinIO Console:${NC}     http://${SELFHOSTED_PUBLIC_HOST}:${MINIO_CONSOLE_PORT:-9001}"
 echo -e "  ${YELLOW}MinIO Bucket:${NC}      ${MINIO_BUCKET}"
@@ -630,6 +669,8 @@ echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━�
 echo -e "${BLUE}📝 Important Files Created${NC}"
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "  ${GREEN}✓${NC} .env                                  Environment configuration"
+echo -e "  ${GREEN}✓${NC} livekit.yaml                          LiveKit runtime configuration"
+echo -e "  ${GREEN}✓${NC} turnserver.conf                       TURN runtime configuration"
 echo -e "  ${GREEN}✓${NC} selfhosted-backend-registration.sql   SQL to map server to self-hosted backend"
 echo -e "  ${GREEN}✓${NC} create-first-server.sql               SQL to create your first server (run AFTER account creation)"
 echo -e "  ${GREEN}✓${NC} QUICKSTART.md                         Quick reference guide"
@@ -645,6 +686,7 @@ echo "   # Edit .env with these values:"
 echo "   VITE_SUPABASE_URL=${API_URL}"
 echo "   VITE_SUPABASE_ANON_KEY=<from Supabase dashboard>"
 echo "   VITE_SIGNALING_URL=${SIGNALING_PUBLIC_URL}"
+echo "   VITE_LIVEKIT_URL=${LIVEKIT_EXTERNAL_URL}"
 echo ""
 echo -e "${YELLOW}2. Start the client:${NC}"
 echo "   npm install"

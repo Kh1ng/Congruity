@@ -11,8 +11,17 @@ const https = require("https");
 const fs = require("fs");
 const path = require("path");
 const { Server } = require("socket.io");
+const { createVoiceRouter } = require("./routes/voice");
+const { createFederationRouter } = require("./routes/federation");
+const {
+  registerUserSocket,
+  unregisterSocket,
+  getUserSockets,
+  getSocketUser,
+} = require("./services/socketRegistry");
 
 const app = express();
+app.use(express.json({ limit: "1mb" }));
 const corsOrigins = (process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : [])
   .map((origin) => origin.trim())
   .filter(Boolean);
@@ -206,6 +215,37 @@ app.get("/rooms", (req, res) => {
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
+  const emitDmSignal = ({ fromUserId, toUserId, signalType, payload }) => {
+    const socketIds = getUserSockets(toUserId);
+    socketIds.forEach((targetSocketId) => {
+      if (signalType === "offer") {
+        io.to(targetSocketId).emit("dm:call:incoming", {
+          from_user_id: fromUserId,
+          offer: payload,
+        });
+        return;
+      }
+
+      if (signalType === "hangup") {
+        io.to(targetSocketId).emit("dm:call:hangup", {
+          from_user_id: fromUserId,
+        });
+        return;
+      }
+
+      io.to(targetSocketId).emit("dm:call:signal", {
+        from_user_id: fromUserId,
+        signal_type: signalType,
+        payload,
+      });
+    });
+  };
+
+  socket.on("auth:identify", ({ userId }) => {
+    if (!isValidId(userId)) return;
+    registerUserSocket(userId, socket.id);
+  });
+
   const emitRoomUsers = (roomId) => {
     const users = Array.from(rooms.get(roomId)?.entries() || []).map(
       ([socketId, userId]) => ({ socketId, userId })
@@ -217,6 +257,9 @@ io.on("connection", (socket) => {
   socket.on("join-room", ({ roomId, userId }) => {
     if (!isValidId(roomId)) return;
     if (userId && !isValidId(userId)) return;
+    if (userId) {
+      registerUserSocket(userId, socket.id);
+    }
 
     const previousRoomId = socketRoomMap.get(socket.id);
     if (previousRoomId && previousRoomId !== roomId && rooms.has(previousRoomId)) {
@@ -252,6 +295,42 @@ io.on("connection", (socket) => {
     emitRoomUsers(roomId);
 
     console.log(`User ${participantId} joined room ${roomId}`);
+  });
+
+  socket.on("voice:join", ({ channel_id: channelId, user_id: userId, display_name: displayName }) => {
+    if (!isValidId(channelId)) return;
+    if (userId && isValidId(userId)) {
+      registerUserSocket(userId, socket.id);
+    }
+    const voiceRoom = `voice:channel:${channelId}`;
+    socket.join(voiceRoom);
+    socket.to(voiceRoom).emit("voice:participant:joined", {
+      channel_id: channelId,
+      user_id: userId || getSocketUser(socket.id),
+      display_name: displayName,
+    });
+  });
+
+  socket.on("voice:leave", ({ channel_id: channelId, user_id: userId }) => {
+    if (!isValidId(channelId)) return;
+    const voiceRoom = `voice:channel:${channelId}`;
+    socket.leave(voiceRoom);
+    socket.to(voiceRoom).emit("voice:participant:left", {
+      channel_id: channelId,
+      user_id: userId || getSocketUser(socket.id),
+    });
+  });
+
+  socket.on("dm:call:signal", ({ to_user_id: toUserId, signal_type: signalType, payload }) => {
+    const fromUserId = getSocketUser(socket.id);
+    if (!fromUserId || !isValidId(toUserId)) return;
+    if (!["offer", "answer", "ice-candidate", "hangup"].includes(signalType)) return;
+    emitDmSignal({
+      fromUserId,
+      toUserId,
+      signalType,
+      payload,
+    });
   });
 
   // Leave a room
@@ -319,8 +398,12 @@ io.on("connection", (socket) => {
       }
     });
     socketRoomMap.delete(socket.id);
+    unregisterSocket(socket.id);
   });
 });
+
+app.use("/api/voice", createVoiceRouter({ io }));
+app.use("/_congruity/federation", createFederationRouter());
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {

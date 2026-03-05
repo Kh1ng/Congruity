@@ -82,6 +82,7 @@ function VoicePanel({ channel, voice, memberMap }) {
     toggleVideo,
     startScreenShare,
     stopScreenShare,
+    startCall,
     endCall,
   } = voice || {};
 
@@ -93,14 +94,16 @@ function VoicePanel({ channel, voice, memberMap }) {
     const localName =
       localProfile.display_name || localProfile.username || user?.email || "You";
 
-    entries.push({
-      id: "local",
-      name: localName,
-      initials: localName.slice(0, 2).toUpperCase(),
-      isLocal: true,
-      stream: localStream,
-      avatar: localProfile.avatar_url || localProfile.avatar,
-    });
+    if (isConnected) {
+      entries.push({
+        id: "local",
+        name: localName,
+        initials: localName.slice(0, 2).toUpperCase(),
+        isLocal: true,
+        stream: localStream,
+        avatar: localProfile.avatar_url || localProfile.avatar,
+      });
+    }
 
     (roomUsers || []).forEach((entry) => {
       const socketId = entry?.socketId || entry;
@@ -119,7 +122,7 @@ function VoicePanel({ channel, voice, memberMap }) {
     });
 
     return entries;
-  }, [roomUsers, memberMap, user, remoteStreamMap, localStream, localSocketId]);
+  }, [isConnected, roomUsers, memberMap, user, remoteStreamMap, localStream, localSocketId]);
 
   if (!channel) {
     return <div className="text-theme-muted">Select a voice channel to join.</div>;
@@ -145,13 +148,23 @@ function VoicePanel({ channel, voice, memberMap }) {
     <div className="relative flex h-full min-h-0 flex-col pb-20">
       <div className="mb-3 flex items-center justify-between border-b border-theme pb-2">
         <div className="text-lg font-semibold text-theme">#{channel.name}</div>
-        <button
-          type="button"
-          onClick={endCall}
-          className="rounded-md border border-[color:var(--gruv-red)] bg-[color:var(--gruv-red)] px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-[color:var(--gruv-bright-red)]"
-        >
-          Leave Call
-        </button>
+        {isConnected ? (
+          <button
+            type="button"
+            onClick={endCall}
+            className="rounded-md border border-[color:var(--gruv-red)] bg-[color:var(--gruv-red)] px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-[color:var(--gruv-bright-red)]"
+          >
+            Leave Call
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => startCall?.()}
+            className="rounded-md border border-theme bg-theme-surface-alt px-3 py-1.5 text-sm font-semibold text-theme-muted transition hover:text-theme-accent"
+          >
+            Join Voice
+          </button>
+        )}
       </div>
 
       {error && <div className="text-red-500 mb-2">{error}</div>}

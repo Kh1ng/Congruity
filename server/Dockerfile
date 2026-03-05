@@ -6,7 +6,10 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+# livekit-server-sdk is required for channel SFU endpoints; keep no-save until
+# lockfile can be refreshed in a fully networked environment.
+RUN npm ci --only=production \
+  && npm install --omit=dev --no-save livekit-server-sdk@^2.14.0
 
 # Copy source
 COPY . .

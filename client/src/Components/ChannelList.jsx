@@ -3,6 +3,7 @@ import { Hash, Volume2, Video } from "lucide-react";
 import { useChannels } from "../hooks";
 import Spinner from "./Spinner";
 import Avatar from "./Avatar";
+import { supabase } from "@/lib/supabase";
 
 function ChannelList({
   serverId,
@@ -43,19 +44,54 @@ function ChannelList({
 
     const fetchPresence = async () => {
       try {
-        const query = encodeURIComponent(voiceChannelIds.join(","));
-        const response = await fetch(`${presenceUrl}/rooms?roomIds=${query}`);
-        if (!response.ok) return;
-        const data = await response.json();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const authHeader = session?.access_token
+          ? { Authorization: `Bearer ${session.access_token}` }
+          : {};
+
+        const channelParticipants = await Promise.all(
+          voiceChannelIds.map(async (channelId) => {
+            const response = await fetch(
+              `${presenceUrl}/api/voice/channel/${channelId}/participants`,
+              {
+                headers: authHeader,
+              }
+            );
+            if (!response.ok) {
+              throw new Error(`participants lookup failed (${response.status})`);
+            }
+            const payload = await response.json();
+            return [
+              channelId,
+              (payload.participants || []).map((participant) => ({
+                socketId: participant.sid || participant.identity,
+                userId: participant.identity,
+                displayName: participant.name || participant.identity,
+              })),
+            ];
+          })
+        );
+
         if (!isMounted) return;
-        const next = {};
-        (data?.rooms || []).forEach((room) => {
-          next[room.roomId] = room.users || [];
-        });
-        setPresenceByRoom(next);
+        setPresenceByRoom(Object.fromEntries(channelParticipants));
       } catch {
-        if (isMounted) {
-          setPresenceByRoom({});
+        try {
+          const query = encodeURIComponent(voiceChannelIds.join(","));
+          const response = await fetch(`${presenceUrl}/rooms?roomIds=${query}`);
+          if (!response.ok) return;
+          const data = await response.json();
+          if (!isMounted) return;
+          const next = {};
+          (data?.rooms || []).forEach((room) => {
+            next[room.roomId] = room.users || [];
+          });
+          setPresenceByRoom(next);
+        } catch {
+          if (isMounted) {
+            setPresenceByRoom({});
+          }
         }
       }
     };
@@ -158,12 +194,16 @@ function ChannelList({
                       : {
                           socketId: entry?.socketId || null,
                           userId: entry?.userId || null,
+                          displayName: entry?.displayName || entry?.name || null,
                         }
                   )
                   .filter(
                     (entry, index, arr) =>
                       arr.findIndex((item) => item.socketId === entry.socketId) === index
                   );
+                const participantCount =
+                  normalizedUsers.length +
+                  (isVoiceConnected && isActiveVoiceChannel ? 1 : 0);
 
                 return (
                   <li key={ch.id}>
@@ -181,6 +221,11 @@ function ChannelList({
                       )}
                       <Volume2 size={14} className="text-[color:var(--gruv-fg3)]" />
                       <span className="truncate">{ch.name}</span>
+                      {participantCount > 0 && (
+                        <span className="ml-auto rounded bg-[color:var(--gruv-bg2)] px-1.5 py-0.5 text-[11px] text-theme-muted">
+                          {`👥 ${participantCount}`}
+                        </span>
+                      )}
                     </button>
                     {(isActiveVoiceChannel || normalizedUsers.length > 0) && (
                       <div className="ml-6 mt-1 space-y-1 text-xs text-theme-muted">
@@ -197,6 +242,7 @@ function ChannelList({
                           }
                           const profile = memberMap?.[userId]?.profile || {};
                           const name =
+                            entry.displayName ||
                             profile.display_name ||
                             profile.username ||
                             userId ||

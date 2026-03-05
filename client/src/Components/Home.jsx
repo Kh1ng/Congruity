@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Menu, Settings, X } from "lucide-react";
-import { useWebRTC, useServerMembers, useServerBackend } from "../hooks";
+import { useServerMembers, useServerBackend } from "../hooks";
 import ServerList from "./ServerList";
 import ChannelList from "./ChannelList";
 import Messages from "./Message";
 import VoicePanel from "./VoicePanel";
 import SettingsView from "./SettingsView";
+import { useVoice } from "@/context/VoiceContext";
 import { isDirectServer } from "@/lib/directConnect";
 import {
   DEFAULT_UI_PREFS,
@@ -30,9 +31,27 @@ function Home() {
   const selectedServerId = selectedServer?.id;
   const selectedServerSignalingUrl =
     selectedServer?.directConfig?.signaling_url || serverBackend?.signaling_url;
-  const voiceSession = useWebRTC(activeVoiceChannel?.id, {
-    signalingUrl: selectedServerSignalingUrl,
-  });
+  const { channelVoice, joinChannelVoice, leaveChannelVoice } = useVoice();
+  const voiceSession = useMemo(
+    () => ({
+      ...channelVoice,
+      endCall: leaveChannelVoice,
+      startCall: (params = {}) =>
+        joinChannelVoice({
+          channelId: params.channelId || activeVoiceChannel?.id,
+          serverId: params.serverId || selectedServerId,
+          signalingUrl: params.signalingUrl || selectedServerSignalingUrl,
+        }),
+    }),
+    [
+      activeVoiceChannel?.id,
+      channelVoice,
+      joinChannelVoice,
+      leaveChannelVoice,
+      selectedServerId,
+      selectedServerSignalingUrl,
+    ]
+  );
   const { memberMap } = useServerMembers(isDirectSelectedServer ? null : selectedServerId);
 
   useEffect(() => {
@@ -180,6 +199,10 @@ function Home() {
                 variant="rail"
                 selectedServerId={selectedServer?.id}
                 onSelectServer={(server) => {
+                  if (voiceSession.isConnected) {
+                    leaveChannelVoice();
+                    setActiveVoiceChannel(null);
+                  }
                   setSelectedServer(server);
                   setSelectedChannel(null);
                   if (isMobileLayout) setShowMobileSidebar(false);
@@ -199,13 +222,31 @@ function Home() {
                 isVoiceConnected={voiceSession.isConnected}
                 activeVoiceChannelId={activeVoiceChannel?.id}
                 onSelectChannel={(channel) => {
+                  const switchingVoiceChannel =
+                    (channel.type === "voice" || channel.type === "video") &&
+                    activeVoiceChannel?.id &&
+                    activeVoiceChannel.id !== channel.id &&
+                    voiceSession.isConnected;
+                  if (
+                    switchingVoiceChannel &&
+                    !window.confirm(
+                      `You're already connected to #${activeVoiceChannel.name}. Leave and join #${channel.name}?`
+                    )
+                  ) {
+                    return;
+                  }
+
+                  if (switchingVoiceChannel) {
+                    leaveChannelVoice();
+                  }
                   setSelectedChannel(channel);
                   if (channel.type === "voice" || channel.type === "video") {
                     setActiveVoiceChannel(channel);
                     if (!voiceSession.isConnected && !voiceSession.isConnecting) {
                       voiceSession.startCall({
-                        video: false,
-                        audio: true,
+                        channelId: channel.id,
+                        serverId: selectedServerId,
+                        signalingUrl: selectedServerSignalingUrl,
                       });
                     }
                   }
@@ -231,8 +272,9 @@ function Home() {
                     onClick={() => {
                       if (activeVoiceChannel && !voiceSession.isConnected) {
                         voiceSession.startCall({
-                          video: false,
-                          audio: true,
+                          channelId: activeVoiceChannel.id,
+                          serverId: selectedServerId,
+                          signalingUrl: selectedServerSignalingUrl,
                         });
                       }
                     }}
@@ -291,6 +333,7 @@ function Home() {
                 uiPrefs={normalizedUiPrefs}
                 onUiPrefsChange={setUiPrefs}
                 onServerRemoved={() => {
+                  leaveChannelVoice();
                   setSelectedServer(null);
                   setSelectedChannel(null);
                   setActiveVoiceChannel(null);

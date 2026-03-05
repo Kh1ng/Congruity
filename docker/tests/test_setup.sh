@@ -174,11 +174,15 @@ test_cloud_mode_configure_only() {
   assert_file_exists "${fixture}/docker/.env" "cloud mode writes .env" || return 1
   assert_file_exists "${fixture}/docker/QUICKSTART.md" "cloud mode writes QUICKSTART.md" || return 1
   assert_file_exists "${fixture}/docker/selfhosted-backend-registration.sql" "cloud mode writes backend registration SQL" || return 1
+  assert_file_exists "${fixture}/docker/livekit.yaml" "cloud mode writes livekit config" || return 1
+  assert_file_exists "${fixture}/docker/turnserver.conf" "cloud mode writes turn config" || return 1
   assert_dir_exists "${fixture}/docker/volumes/db/init" "cloud mode creates db init dir" || return 1
   assert_not_exists "${fixture}/docker/volumes/api/kong.yml" "cloud mode does not create kong config" || return 1
 
   assert_contains "${fixture}/docker/.env" "USE_LOCAL_SUPABASE=false" "cloud mode sets local supabase false" || return 1
   assert_contains "${fixture}/docker/.env" "API_EXTERNAL_URL=https://alpha.supabase.co" "cloud mode stores cloud Supabase URL" || return 1
+  assert_contains "${fixture}/docker/.env" "LIVEKIT_API_KEY=devkey" "cloud mode stores livekit api key" || return 1
+  assert_contains "${fixture}/docker/.env" "TURN_HOST=voice.alpha.example" "cloud mode stores turn host" || return 1
   assert_contains "${fixture}/docker/.env" "SELFHOSTED_PUBLIC_HOST=voice.alpha.example" "cloud mode stores public host" || return 1
   assert_contains "${fixture}/docker/.env" "# Generated on 2026-02-24T00:00:00Z" "cloud mode uses deterministic generated timestamp" || return 1
 
@@ -219,6 +223,7 @@ test_local_mode_generates_kong() {
   assert_file_exists "${fixture}/docker/volumes/api/kong.yml" "local mode creates kong config" || return 1
   assert_contains "${fixture}/docker/.env" "USE_LOCAL_SUPABASE=true" "local mode sets local supabase true" || return 1
   assert_contains "${fixture}/docker/.env" "API_EXTERNAL_URL=http://localhost:8000" "local mode stores local API URL" || return 1
+  assert_contains "${fixture}/docker/.env" "LIVEKIT_URL=ws://livekit:7880" "local mode stores internal livekit url" || return 1
   assert_contains "${fixture}/docker/selfhosted-backend-registration.sql" "ws://localhost:3001" "localhost signaling uses ws protocol" || return 1
   assert_contains "${fixture}/docker/QUICKSTART.md" "**Deployment Mode:** true" "quickstart reflects local supabase mode" || return 1
 
@@ -331,6 +336,8 @@ test_compose_file_has_required_services() {
   assert_contains "${compose_file}" "minio:" "compose defines MinIO service" || return 1
   assert_contains "${compose_file}" "signaling:" "compose defines signaling service" || return 1
   assert_contains "${compose_file}" "kong:" "compose defines Kong service" || return 1
+  assert_contains "${compose_file}" "livekit:" "compose defines LiveKit service" || return 1
+  assert_contains "${compose_file}" "coturn:" "compose defines coturn service" || return 1
   assert_contains "${compose_file}" "minio-init:" "compose defines MinIO init job" || return 1
   assert_contains "${compose_file}" "context: ../server" "compose builds signaling from server Dockerfile" || return 1
 

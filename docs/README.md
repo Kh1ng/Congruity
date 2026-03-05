@@ -8,7 +8,10 @@ This folder accumulated planning notes, review docs, and implementation summarie
 - `SETUP_WORKFLOW.md` - Short step-by-step workflow for alpha setup (including direct-connect path)
 - `ALPHA_RELEASE.md` - Build/release playbook (desktop + mobile)
 - `ALPHA_SECURITY_AUDIT.md` - Current alpha security hardening summary
+- `TAURI_DEPLOYMENT_READINESS.md` - Desktop/mobile Tauri build readiness audit and checklist
 - `DEPLOYMENT_COMPARISON.md` - Hybrid vs full self-hosted tradeoffs
+- `VOICE_ARCHITECTURE.md` - P2P DM vs LiveKit channel voice architecture and operational requirements
+- `FEDERATION.md` - Federation endpoint contract, signing model, and peering notes
 - `user-stories.md` - Product and UX requirements backlog
 - `UI_SCREENSHOT_EVALUATION.md` - Manual screenshot review matrix/checklist for responsive UI changes
 

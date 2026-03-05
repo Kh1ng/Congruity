@@ -3,6 +3,14 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import ChannelList from "./ChannelList";
 
+vi.mock("@/lib/supabase", () => ({
+  supabase: {
+    auth: {
+      getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
+    },
+  },
+}));
+
 vi.mock("../hooks", () => ({
   useChannels: () => ({
     textChannels: [{ id: "t1", name: "general" }],
@@ -20,20 +28,22 @@ describe("ChannelList", () => {
   });
 
   it("shows voice participants before local join from signaling presence", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
+    const fetchMock = vi.fn().mockImplementation((url) => {
+      if (typeof url === "string" && url.includes("/api/voice/channel/v1/participants")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            participants: [{ sid: "socket-2", identity: "user-2", name: "Other User" }],
+          }),
+        });
+      }
+      return Promise.resolve({
         ok: true,
-        json: async () => ({
-          rooms: [
-            {
-              roomId: "v1",
-              users: [{ socketId: "socket-2", userId: "user-2" }],
-            },
-          ],
-        }),
-      })
-    );
+        json: async () => ({ rooms: [] }),
+      });
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
 
     render(
       <ChannelList
@@ -50,6 +60,11 @@ describe("ChannelList", () => {
     );
 
     expect(await screen.findByText("Other User")).toBeInTheDocument();
+    expect(screen.getByText("👥 1")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:3001/api/voice/channel/v1/participants",
+      expect.any(Object)
+    );
   });
 
   it("renders channel groups", () => {
