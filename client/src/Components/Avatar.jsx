@@ -14,6 +14,15 @@ const statusColors = {
   offline: "bg-gray-500",
 };
 
+const fallbackPalette = [
+  "#458588",
+  "#689d6a",
+  "#b16286",
+  "#d79921",
+  "#d65d0e",
+  "#98971a",
+];
+
 function getInitials(name) {
   if (!name || !name.trim()) return "?";
   
@@ -28,11 +37,17 @@ function Avatar({ name = "", src, size = "md", status, className = "" }) {
   const [imgError, setImgError] = useState(false);
   const initials = getInitials(name);
   const showImage = src && !imgError;
+  const hash = Array.from(String(name)).reduce(
+    (acc, char) => acc + char.charCodeAt(0),
+    0
+  );
+  const fallbackBg = fallbackPalette[hash % fallbackPalette.length];
 
   return (
     <div
       data-testid="avatar"
       className={`relative inline-flex items-center justify-center rounded-full bg-[color:var(--color-surface-alt)] border border-[color:var(--color-border)] font-semibold text-[color:var(--color-text)] ${sizeClasses[size]} ${className}`}
+      style={!showImage ? { backgroundColor: fallbackBg } : undefined}
     >
       {showImage ? (
         <img

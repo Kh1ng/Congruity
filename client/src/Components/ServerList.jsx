@@ -2,13 +2,14 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Cloud, LogIn, Plus, Server as ServerIcon } from "lucide-react";
 import { useServers } from "@/hooks";
 import Spinner from "./Spinner";
+import Avatar from "./Avatar";
 import {
   loadDirectServers,
   parseDirectConnectInput,
   saveDirectServers,
 } from "@/lib/directConnect";
 
-function ServerList({ onSelectServer }) {
+function ServerList({ onSelectServer, selectedServerId, variant = "panel" }) {
   const {
     servers,
     loading,
@@ -24,6 +25,7 @@ function ServerList({ onSelectServer }) {
   const [createError, setCreateError] = useState(null);
   const [createStep, setCreateStep] = useState(1);
   const [directServers, setDirectServers] = useState([]);
+  const [showRailMenu, setShowRailMenu] = useState(false);
 
   useEffect(() => {
     setDirectServers(loadDirectServers());
@@ -93,6 +95,13 @@ function ServerList({ onSelectServer }) {
   };
 
   if (loading) {
+    if (variant === "rail") {
+      return (
+        <div className="flex h-full items-center justify-center text-theme-muted">
+          <Spinner size={14} />
+        </div>
+      );
+    }
     return (
       <div className="text-slate-400 flex items-center gap-2">
         <Spinner size={14} /> Loading servers...
@@ -101,13 +110,126 @@ function ServerList({ onSelectServer }) {
   }
 
   if (error) {
+    if (variant === "rail") {
+      return <div className="p-2 text-[11px] text-red-400">Connection error</div>;
+    }
     return <div className="text-red-500">{error}</div>;
+  }
+
+  if (variant === "rail") {
+    return (
+      <div className="relative flex h-full flex-col items-center py-2">
+        <div className="flex-1 space-y-2 overflow-y-auto px-1">
+          {combinedServers.map((server) => {
+            const isActive = (selectedServerId || selectedId) === server.id;
+            return (
+              <button
+                key={server.id}
+                type="button"
+                title={server.name}
+                onClick={() => {
+                  setSelectedId(server.id);
+                  onSelectServer?.(server);
+                }}
+                className={`group relative flex h-11 w-11 items-center justify-center rounded-xl border border-theme transition ${
+                  isActive
+                    ? "bg-theme-surface text-theme-accent"
+                    : "bg-theme-surface-alt text-theme-muted hover:text-theme"
+                }`}
+              >
+                {isActive && (
+                  <span className="absolute -left-2 h-6 w-1 rounded-r bg-theme-accent" />
+                )}
+                <Avatar
+                  name={server.name}
+                  src={server.icon_url || server.avatar_url || server.image_url}
+                  size="lg"
+                  className="h-11 w-11 rounded-xl border-0 bg-transparent"
+                />
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-2 px-1">
+          <button
+            type="button"
+            onClick={() => setShowRailMenu((prev) => !prev)}
+            className="flex h-11 w-11 items-center justify-center rounded-xl border border-theme bg-theme-surface-alt text-theme-muted transition hover:text-theme-accent"
+            aria-label="Add or join server"
+          >
+            <Plus size={18} />
+          </button>
+        </div>
+
+        {showRailMenu && (
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
+            <button
+              type="button"
+              className="absolute inset-0"
+              aria-label="Close server menu"
+              onClick={() => setShowRailMenu(false)}
+            />
+            <div className="relative w-full max-w-sm rounded-lg border border-theme bg-theme-surface p-4 shadow-2xl">
+              <form
+                onSubmit={async (event) => {
+                  await handleJoin(event);
+                  setShowRailMenu(false);
+                }}
+                className="mb-4 space-y-2"
+              >
+                <div className="text-[11px] uppercase tracking-[0.12em] text-theme-muted">
+                  Join Server
+                </div>
+                <input
+                  type="text"
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value)}
+                  placeholder="Invite code or ws://host:3001"
+                  className="w-full rounded border border-theme bg-theme-surface-alt px-2 py-2 text-sm"
+                />
+                <button
+                  type="submit"
+                  className="w-full rounded border border-theme bg-theme-surface-alt px-2 py-2 text-sm text-theme-muted transition hover:text-theme-accent"
+                >
+                  Join
+                </button>
+              </form>
+              <form
+                onSubmit={async (event) => {
+                  await handleCreate(event);
+                  setShowRailMenu(false);
+                }}
+                className="space-y-2"
+              >
+                <div className="text-[11px] uppercase tracking-[0.12em] text-theme-muted">
+                  Create Server
+                </div>
+                <input
+                  type="text"
+                  value={newServerName}
+                  onChange={(e) => setNewServerName(e.target.value)}
+                  placeholder="Server name"
+                  className="w-full rounded border border-theme bg-theme-surface-alt px-2 py-2 text-sm"
+                />
+                <button
+                  type="submit"
+                  className="w-full rounded border border-theme bg-theme-surface-alt px-2 py-2 text-sm text-theme-muted transition hover:text-theme-accent"
+                >
+                  Create
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-3">
-        <h1 className="text-lg font-semibold">Servers</h1>
+      <div className="flex justify-between items-center mb-2">
+        <h1 className="text-base font-semibold">Servers</h1>
         <button
           onClick={() => setShowCreate(!showCreate)}
           className="inline-flex items-center gap-1.5 text-sm hover:text-gruvbox-orange"
@@ -204,11 +326,11 @@ function ServerList({ onSelectServer }) {
       {combinedServers.length === 0 ? (
         <div className="text-slate-400">No servers yet. Create or join one!</div>
       ) : (
-        <ul className="space-y-1.5">
+        <ul className="space-y-1">
           {combinedServers.map((server) => (
             <li
               key={server.id}
-              className={`border rounded p-2 cursor-pointer hover:border-gruvbox-orange ${
+              className={`border rounded-md p-2 cursor-pointer transition hover:border-gruvbox-orange ${
                 selectedId === server.id
                   ? "border-gruvbox-orange"
                   : "border-slate-600"
@@ -218,18 +340,30 @@ function ServerList({ onSelectServer }) {
                 onSelectServer?.(server);
               }}
             >
-              <h3 className="font-semibold">
-                {server.name}
-                {server.isDirect && (
-                  <span className="ml-2 text-xs font-normal text-theme-muted">
-                    Direct
-                  </span>
-                )}
-              </h3>
-              {server.description && (
-                <p className="text-sm text-slate-400">{server.description}</p>
-              )}
-              <div className="mt-2 flex items-center gap-2 text-xs">
+              <div className="flex items-start gap-2">
+                <Avatar
+                  name={server.name}
+                  src={server.icon_url || server.avatar_url || server.image_url}
+                  size="md"
+                  className="shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate text-sm font-semibold">
+                    {server.name}
+                    {server.isDirect && (
+                      <span className="ml-2 text-[10px] font-normal text-theme-muted">
+                        Direct
+                      </span>
+                    )}
+                  </h3>
+                  {server.description && (
+                    <p className="mt-0.5 line-clamp-2 text-xs text-slate-400">
+                      {server.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="mt-1.5 flex items-center gap-2 text-[11px]">
                 {server.isDirect ? (
                   <>
                     <span className="text-theme-muted">Local direct connection</span>

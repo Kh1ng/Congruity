@@ -4,7 +4,27 @@ import { useMessages } from "@/hooks";
 import Spinner from "./Spinner";
 import Avatar from "./Avatar";
 
-function Messages({ channelId, memberMap = {} }) {
+function formatTimestamp(raw) {
+  if (!raw) return "";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+function renderMessageContent(content) {
+  if (!content) return null;
+  const codeBlockMatch = content.match(/^```([\s\S]*?)```$/);
+  if (codeBlockMatch) {
+    return (
+      <pre className="overflow-x-auto rounded-md bg-[color:var(--gruv-bg_hard)] px-3 py-2 text-sm leading-relaxed text-theme">
+        <code>{codeBlockMatch[1].trim()}</code>
+      </pre>
+    );
+  }
+  return <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-theme">{content}</p>;
+}
+
+function Messages({ channelId, channel, memberMap = {} }) {
   const { messages, loading, error, sendMessage } = useMessages(channelId);
   const [newMessage, setNewMessage] = useState("");
 
@@ -36,14 +56,21 @@ function Messages({ channelId, memberMap = {} }) {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="text-xs uppercase tracking-wide text-slate-400 mb-2">Channel chat</div>
-      <div className="flex-1 overflow-y-auto border border-slate-700 rounded p-2 bg-slate-950/40">
+    <div className="flex h-full min-h-0 flex-col">
+      <header className="mb-2 border-b border-theme pb-2">
+        <div className="text-base font-semibold text-theme">
+          #{channel?.name || "channel"}
+        </div>
+        <div className="text-xs text-[color:var(--gruv-fg3)]">
+          {channel?.topic || "Welcome to the channel."}
+        </div>
+      </header>
+      <div className="flex-1 overflow-y-auto pr-1">
         {messages.length === 0 ? (
-          <div className="text-slate-400">No messages yet</div>
+          <div className="pt-2 text-sm text-theme-muted">No messages yet</div>
         ) : (
-          <ul className="space-y-2">
-            {messages.map((message) => {
+          <ul className="pb-2">
+            {messages.map((message, index) => {
               const member = memberMap[message.user_id];
               const nickname = member?.nickname;
               const profile = member?.profile || message.profiles;
@@ -54,13 +81,30 @@ function Messages({ channelId, memberMap = {} }) {
                 profile?.id ||
                 message.user_id;
               const avatarSrc = profile?.avatar_url || profile?.avatar;
+              const prevMessage = messages[index - 1];
+              const grouped =
+                prevMessage &&
+                prevMessage.user_id === message.user_id &&
+                new Date(message.created_at || 0).getTime() -
+                  new Date(prevMessage.created_at || 0).getTime() <
+                  5 * 60 * 1000;
 
               return (
-                <li key={message.id} className="flex items-start gap-2">
-                  <Avatar name={label} src={avatarSrc} size="sm" />
-                  <div>
-                    <div className="text-slate-400">{label}</div>
-                    <div>{message.content}</div>
+                <li
+                  key={message.id}
+                  className={grouped ? "ml-10 mt-1" : "mt-4 flex items-start gap-2"}
+                >
+                  {!grouped && <Avatar name={label} src={avatarSrc} size="md" />}
+                  <div className="min-w-0">
+                    {!grouped && (
+                      <div className="mb-0.5 flex items-baseline gap-2">
+                        <span className="text-[15px] font-semibold text-theme">{label}</span>
+                        <span className="text-[11px] text-[color:var(--gruv-fg3)]">
+                          {formatTimestamp(message.created_at)}
+                        </span>
+                      </div>
+                    )}
+                    {renderMessageContent(message.content)}
                   </div>
                 </li>
               );
@@ -68,27 +112,30 @@ function Messages({ channelId, memberMap = {} }) {
           </ul>
         )}
       </div>
-      <div className="mt-3 flex gap-2">
-        <input
-          type="text"
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              handlePostMessage();
-            }
-          }}
-          placeholder="Type a message"
-          className="flex-1 bg-slate-900/70 border border-slate-700 rounded px-3 py-2 text-slate-100"
-        />
-        <button
-          onClick={handlePostMessage}
-          className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium hover:text-gruvbox-orange"
-          aria-label="Send message"
-        >
-          <Send size={16} />
-          Send
-        </button>
+      <div className="mt-2 border-t border-theme pt-2">
+        <div className="relative">
+          <input
+            type="text"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handlePostMessage();
+              }
+            }}
+            placeholder={`Message #${channel?.name || "channel"}`}
+            className="w-full rounded-lg border border-theme bg-[color:var(--gruv-bg1)] px-3 py-2 pr-10 text-theme placeholder:text-[color:var(--gruv-bg4)]"
+          />
+          {newMessage.trim().length > 0 && (
+            <button
+              onClick={handlePostMessage}
+              className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-theme-muted transition hover:bg-[color:var(--gruv-bg2)] hover:text-theme-accent"
+              aria-label="Send message"
+            >
+              <Send size={15} />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

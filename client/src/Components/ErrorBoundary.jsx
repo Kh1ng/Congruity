@@ -1,5 +1,15 @@
 import React from "react";
 
+function isAbortLikeError(error) {
+  const message = String(error?.message || error || "");
+  return (
+    error?.name === "AbortError" ||
+    message.includes("AbortError") ||
+    message.includes("operation was aborted") ||
+    message.includes("Request was aborted")
+  );
+}
+
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -32,6 +42,9 @@ class ErrorBoundary extends React.Component {
   }
 
   handleWindowError = (event) => {
+    if (isAbortLikeError(event?.error || event?.message)) {
+      return;
+    }
     this.setState({
       hasError: true,
       error: event.error || new Error(event.message || "Unexpected runtime error"),
@@ -40,6 +53,10 @@ class ErrorBoundary extends React.Component {
 
   handleUnhandledRejection = (event) => {
     const reason = event.reason;
+    if (isAbortLikeError(reason)) {
+      event.preventDefault?.();
+      return;
+    }
     const error = reason instanceof Error ? reason : new Error(String(reason));
     this.setState({
       hasError: true,

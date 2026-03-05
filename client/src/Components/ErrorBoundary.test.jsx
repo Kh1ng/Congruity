@@ -56,4 +56,18 @@ describe("ErrorBoundary", () => {
 
     errorSpy.mockRestore();
   });
+
+  it("ignores abort-like unhandled rejections", () => {
+    render(
+      <ErrorBoundary>
+        <div>Healthy view</div>
+      </ErrorBoundary>
+    );
+
+    const event = new Event("unhandledrejection");
+    event.reason = new Error("AbortError: The operation was aborted.");
+    window.dispatchEvent(event);
+
+    expect(screen.getByText("Healthy view")).toBeInTheDocument();
+  });
 });

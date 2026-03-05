@@ -196,4 +196,30 @@ describe("useWebRTC room sync", () => {
     expect(result.current.localStream).toBe(null);
     expect(result.current.isConnected).toBe(false);
   });
+
+  it("toggles deafen state and resets on endCall", async () => {
+    const { io } = await import("socket.io-client");
+    const socket = createMockSocket();
+    io.mockReturnValue(socket);
+
+    const stream = createMockStream();
+    navigator.mediaDevices.getUserMedia.mockResolvedValueOnce(stream);
+
+    const { result } = renderHook(() => useWebRTC("room-a"));
+
+    await act(async () => {
+      await result.current.startCall({ video: false, audio: true });
+    });
+
+    expect(result.current.isDeafened).toBe(false);
+    act(() => {
+      result.current.toggleDeafen();
+    });
+    expect(result.current.isDeafened).toBe(true);
+
+    act(() => {
+      result.current.endCall();
+    });
+    expect(result.current.isDeafened).toBe(false);
+  });
 });

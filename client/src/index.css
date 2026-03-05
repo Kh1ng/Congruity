@@ -12,20 +12,46 @@
 
 :root,
 :root[data-theme="gruvbox"] {
-  --color-bg: #282828;
+  --gruv-bg: #282828;
+  --gruv-bg_hard: #1d2021;
+  --gruv-bg_soft: #32302f;
+  --gruv-bg1: #3c3836;
+  --gruv-bg2: #504945;
+  --gruv-bg3: #665c54;
+  --gruv-bg4: #7c6f64;
+  --gruv-fg: #ebdbb2;
+  --gruv-fg1: #d5c4a1;
+  --gruv-fg2: #bdae93;
+  --gruv-fg3: #a89984;
+  --gruv-red: #cc241d;
+  --gruv-bright-red: #fb4934;
+  --gruv-green: #98971a;
+  --gruv-bright-green: #b8bb26;
+  --gruv-yellow: #d79921;
+  --gruv-bright-yellow: #fabd2f;
+  --gruv-blue: #458588;
+  --gruv-bright-blue: #83a598;
+  --gruv-purple: #b16286;
+  --gruv-bright-purple: #d3869b;
+  --gruv-aqua: #689d6a;
+  --gruv-bright-aqua: #8ec07c;
+  --gruv-orange: #d65d0e;
+  --gruv-bright-orange: #fe8019;
+
+  --color-bg: var(--gruv-bg);
   --color-bg-rgb: 40 40 40;
-  --color-surface: #3c3836;
+  --color-surface: var(--gruv-bg1);
   --color-surface-rgb: 60 56 54;
-  --color-surface-alt: #1d2021;
+  --color-surface-alt: var(--gruv-bg_hard);
   --color-surface-alt-rgb: 29 32 33;
-  --color-text: #ebdbb2;
-  --color-text-muted: #928374;
-  --color-border: #665c54;
-  --color-accent: #fe8019;
-  --color-accent-contrast: #282828;
-  --color-accent-2: #fabd2f;
-  --color-danger: #fb4934;
-  --color-success: #b8bb26;
+  --color-text: var(--gruv-fg);
+  --color-text-muted: var(--gruv-fg3);
+  --color-border: var(--gruv-bg3);
+  --color-accent: var(--gruv-bright-orange);
+  --color-accent-contrast: var(--gruv-bg);
+  --color-accent-2: var(--gruv-bright-yellow);
+  --color-danger: var(--gruv-bright-red);
+  --color-success: var(--gruv-bright-green);
   --ui-panel-opacity: 0.92;
   --ui-bg-opacity: 1;
 }
@@ -114,6 +140,18 @@ body {
   backdrop-filter: blur(6px);
 }
 
+.ui-app-bg {
+  background-color: rgb(var(--color-bg-rgb) / var(--ui-bg-opacity, 1));
+}
+
+.congruity-server-rail {
+  background-color: var(--gruv-bg_hard);
+}
+
+.congruity-channel-sidebar {
+  background-color: var(--gruv-bg_hard);
+}
+
 a {
   color: var(--color-accent);
 }
@@ -141,6 +179,11 @@ textarea {
   padding: 0.5rem;
   font-size: 1rem;
   width: 100%;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--gruv-bg4);
 }
 
 .theme-control {

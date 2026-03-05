@@ -176,4 +176,29 @@ describe("useAuth", () => {
       expect(result.current.isAuthenticated).toBe(true);
     });
   });
+
+  it("exposes authError when initial session bootstrap fails and supports retry", async () => {
+    supabase.auth.getSession
+      .mockRejectedValueOnce(new Error("Failed to fetch"))
+      .mockResolvedValueOnce({
+        data: { session: null },
+        error: null,
+      });
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.authError?.message).toMatch(/failed to fetch/i);
+    });
+
+    await act(async () => {
+      await result.current.retrySession();
+    });
+
+    await waitFor(() => {
+      expect(result.current.authError).toBe(null);
+      expect(result.current.loading).toBe(false);
+    });
+  });
 });

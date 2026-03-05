@@ -31,7 +31,7 @@ describe("Messages", () => {
   it("send message", async () => {
     render(<Messages channelId="c1" />);
     await act(async () => {
-      fireEvent.change(screen.getByPlaceholderText(/type a message/i), {
+      fireEvent.change(screen.getByPlaceholderText(/message #channel/i), {
         target: { value: "Yo" },
       });
       fireEvent.click(screen.getByRole("button", { name: /send/i }));

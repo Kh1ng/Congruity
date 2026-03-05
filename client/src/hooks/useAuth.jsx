@@ -18,14 +18,27 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState(null);
+
+  const refreshSession = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      setSession(data?.session ?? null);
+      setUser(data?.session?.user ?? null);
+      setAuthError(null);
+    } catch (error) {
+      setSession(null);
+      setUser(null);
+      setAuthError(error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    refreshSession();
 
     // Listen for auth changes
     const {
@@ -33,11 +46,12 @@ export function AuthProvider({ children }) {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      setAuthError(null);
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [refreshSession]);
 
   const signUp = useCallback(async (email, password, metadata = {}) => {
     const { data, error } = await supabase.auth.signUp({
@@ -71,9 +85,12 @@ export function AuthProvider({ children }) {
     user,
     session,
     loading,
+    authError,
     signUp,
     signIn,
     signOut,
+    retrySession: refreshSession,
+    clearAuthError: () => setAuthError(null),
     isAuthenticated: !!user,
   };
 

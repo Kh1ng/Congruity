@@ -74,6 +74,7 @@ export function useWebRTC(roomId, options = {}) {
   const [remoteStreams, setRemoteStreams] = useState(new Map());
   const [error, setError] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
+  const [isDeafened, setIsDeafened] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [roomUsers, setRoomUsers] = useState([]);
@@ -734,6 +735,13 @@ export function useWebRTC(roomId, options = {}) {
   }, [monitorStreamAudio]);
 
   /**
+   * Toggle local deafen state (mute incoming playback in UI)
+   */
+  const toggleDeafen = useCallback(() => {
+    setIsDeafened((prev) => !prev);
+  }, []);
+
+  /**
    * Toggle video on/off
    */
   const toggleVideo = useCallback(() => {
@@ -838,6 +846,7 @@ export function useWebRTC(roomId, options = {}) {
     setIsConnected(false);
     setIsConnecting(false);
     setIsMuted(false);
+    setIsDeafened(false);
     setIsVideoOff(false);
     cleanupAudioMonitor("local");
     audioMonitorsRef.current.forEach((_, id) => cleanupAudioMonitor(id));
@@ -921,6 +930,7 @@ export function useWebRTC(roomId, options = {}) {
     remoteStreams: Array.from(remoteStreams.entries()),
     error,
     isMuted,
+    isDeafened,
     isVideoOff,
     isScreenSharing,
     roomUsers,
@@ -936,6 +946,7 @@ export function useWebRTC(roomId, options = {}) {
     startCall,
     endCall,
     toggleMute,
+    toggleDeafen,
     toggleVideo,
     startScreenShare,
     stopScreenShare,

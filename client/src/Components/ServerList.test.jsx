@@ -53,6 +53,7 @@ describe("ServerList", () => {
     render(<ServerList />);
     expect(screen.getByText("Alpha")).toBeInTheDocument();
     expect(screen.getByText("Beta")).toBeInTheDocument();
+    expect(screen.getAllByTestId("avatar").length).toBeGreaterThanOrEqual(2);
   });
 
   it("empty state", () => {
@@ -117,7 +118,7 @@ describe("ServerList", () => {
         }),
       }),
     );
-    expect(screen.getByText("Direct (localhost:3301)")).toBeInTheDocument();
+    expect(screen.getByText(/Direct \(localhost:3301\)/)).toBeInTheDocument();
   });
 
   it("does not show leave/delete actions for cloud servers in the list", async () => {
@@ -142,7 +143,7 @@ describe("ServerList", () => {
     });
 
     expect(confirmSpy).toHaveBeenCalled();
-    expect(screen.queryByText("Direct (localhost:3301)")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Direct \(localhost:3301\)/)).not.toBeInTheDocument();
     expect(leaveServerMock).not.toHaveBeenCalled();
     expect(deleteServerMock).not.toHaveBeenCalled();
   });
