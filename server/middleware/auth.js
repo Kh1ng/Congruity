@@ -1,4 +1,5 @@
 const { authenticateToken } = require("../services/supabaseService");
+const { sendError } = require("../utils/http");
 
 async function requireAuth(req, res, next) {
   try {
@@ -19,10 +20,7 @@ async function requireAuth(req, res, next) {
     req.accessToken = token;
     next();
   } catch (error) {
-    res.status(401).json({
-      error: "Authentication failed",
-      details: String(error?.message || error),
-    });
+    sendError(res, 401, "Authentication failed", error);
   }
 }
 

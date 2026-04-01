@@ -6,6 +6,26 @@ NON_INTERACTIVE=false
 SKIP_PREREQ_CHECKS=false
 SKIP_CLOUDFLARE_PROMPT=${SKIP_CLOUDFLARE_PROMPT:-false}
 
+base64url_encode() {
+  openssl base64 -A | tr '+/' '-_' | tr -d '='
+}
+
+generate_jwt_hs256() {
+  local role="$1"
+  local expires_at="$2"
+  local header payload encoded_header encoded_payload signature
+  header='{"alg":"HS256","typ":"JWT"}'
+  payload=$(printf '{"iss":"supabase-self-hosted","role":"%s","exp":%s}' "${role}" "${expires_at}")
+  encoded_header=$(printf '%s' "${header}" | base64url_encode)
+  encoded_payload=$(printf '%s' "${payload}" | base64url_encode)
+  signature=$(
+    printf '%s' "${encoded_header}.${encoded_payload}" |
+      openssl dgst -sha256 -hmac "${JWT_SECRET}" -binary |
+      base64url_encode
+  )
+  printf '%s.%s.%s' "${encoded_header}" "${encoded_payload}" "${signature}"
+}
+
 for arg in "$@"; do
   case "$arg" in
     --configure-only|--setup-only)
@@ -106,11 +126,6 @@ if [ "$SKIP_CONFIG" != "true" ]; then
     JWT_SECRET=${JWT_SECRET:-$(openssl rand -base64 32)}
     SECRET_KEY_BASE=${SECRET_KEY_BASE:-$(openssl rand -base64 64 | tr -d '\n')}
     
-    # Generate Supabase keys (simplified - in production use proper JWT generation)
-    # These are placeholder keys - users should generate proper ones
-    echo -e "${YELLOW}Note: You should generate proper Supabase API keys for production${NC}"
-    echo "See: https://supabase.com/docs/guides/self-hosting#api-keys"
-    
     # Site URL
     if [ "${NON_INTERACTIVE}" = "true" ]; then
       SITE_URL=${SITE_URL:-http://localhost:5173}
@@ -139,6 +154,23 @@ if [ "$SKIP_CONFIG" != "true" ]; then
         echo -e "${RED}Cloud Supabase URL is required in mode 1${NC}"
         exit 1
       fi
+
+      if [ "${NON_INTERACTIVE}" = "true" ]; then
+        ANON_KEY=${ANON_KEY:-}
+        SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY:-}
+      else
+        read -p "Cloud Supabase anon key (optional for this script): " ANON_KEY
+        read -p "Cloud Supabase service role key (optional for this script): " SERVICE_ROLE_KEY
+      fi
+    fi
+
+    if [ "$USE_LOCAL_SUPABASE" = "true" ]; then
+      key_expiry=$(( $(date +%s) + (10 * 365 * 24 * 60 * 60) ))
+      ANON_KEY=${ANON_KEY:-$(generate_jwt_hs256 "anon" "${key_expiry}")}
+      SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY:-$(generate_jwt_hs256 "service_role" "${key_expiry}")}
+    else
+      ANON_KEY=${ANON_KEY:-SET_FROM_CLOUD_SUPABASE}
+      SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY:-SET_FROM_CLOUD_SUPABASE}
     fi
 
     if [ "${NON_INTERACTIVE}" = "true" ]; then
@@ -205,9 +237,10 @@ POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 JWT_SECRET=${JWT_SECRET}
 
 # Supabase API Keys
-# TODO: Generate proper keys at https://supabase.com/docs/guides/self-hosting#api-keys
-ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
-SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
+# Local mode: generated from JWT_SECRET.
+# Cloud mode: set to cloud project values or left as placeholder (not used by local-only services).
+ANON_KEY=${ANON_KEY}
+SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}
 
 # URLs
 SITE_URL=${SITE_URL}

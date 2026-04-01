@@ -54,7 +54,7 @@ async function querySingle(path) {
 async function getChannelById(channelId) {
   const encoded = encodeURIComponent(channelId);
   return querySingle(
-    `/rest/v1/channels?select=id,server_id,name,type&id=eq.${encoded}`
+    `/rest/v1/channels?select=id,server_id,name,type,federation_enabled&id=eq.${encoded}`
   );
 }
 

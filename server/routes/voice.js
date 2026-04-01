@@ -11,9 +11,14 @@ const {
   canAccessChannel,
   getProfileByUserId,
 } = require("../services/supabaseService");
-const { joinFederatedVoiceRoom } = require("../services/federationService");
+const {
+  joinFederatedVoiceRoom,
+  normalizeRemoteServer,
+  isFederationServerAllowed,
+} = require("../services/federationService");
 const { getTurnIceConfig } = require("../services/turnService");
 const { getUserSockets } = require("../services/socketRegistry");
+const { sendError } = require("../utils/http");
 
 const SIGNAL_TYPES = new Set(["offer", "answer", "ice-candidate", "hangup"]);
 
@@ -60,10 +65,7 @@ function createVoiceRouter({ io }) {
         turn_credentials: turnConfig,
       });
     } catch (error) {
-      res.status(500).json({
-        error: "Failed to join channel voice",
-        details: String(error?.message || error),
-      });
+      sendError(res, 500, "Failed to join channel voice", error);
     }
   });
 
@@ -83,10 +85,7 @@ function createVoiceRouter({ io }) {
 
       res.status(200).json({ ok: true });
     } catch (error) {
-      res.status(500).json({
-        error: "Failed to leave channel voice",
-        details: String(error?.message || error),
-      });
+      sendError(res, 500, "Failed to leave channel voice", error);
     }
   });
 
@@ -118,10 +117,7 @@ function createVoiceRouter({ io }) {
         })),
       });
     } catch (error) {
-      res.status(500).json({
-        error: "Failed to list participants",
-        details: String(error?.message || error),
-      });
+      sendError(res, 500, "Failed to list participants", error);
     }
   });
 
@@ -179,10 +175,7 @@ function createVoiceRouter({ io }) {
         turn_credentials: getTurnIceConfig(req.user.id),
       });
     } catch (error) {
-      res.status(500).json({
-        error: "Failed to send DM signal",
-        details: String(error?.message || error),
-      });
+      sendError(res, 500, "Failed to send DM signal", error);
     }
   });
 
@@ -200,6 +193,17 @@ function createVoiceRouter({ io }) {
         res.status(400).json({ error: "remote_server and channel_id are required" });
         return;
       }
+      let normalizedRemoteServer;
+      try {
+        normalizedRemoteServer = normalizeRemoteServer(remoteServer);
+      } catch {
+        res.status(400).json({ error: "Invalid remote_server value" });
+        return;
+      }
+      if (!isFederationServerAllowed(normalizedRemoteServer)) {
+        res.status(403).json({ error: "Remote server is not allowed" });
+        return;
+      }
 
       const profile = await getProfileByUserId(req.user.id);
       const localUser = {
@@ -208,17 +212,14 @@ function createVoiceRouter({ io }) {
       };
 
       const payload = await joinFederatedVoiceRoom({
-        remoteServer,
+        remoteServer: normalizedRemoteServer,
         channelId,
         localUser,
       });
 
       res.status(200).json(payload);
     } catch (error) {
-      res.status(500).json({
-        error: "Failed to join federated voice room",
-        details: String(error?.message || error),
-      });
+      sendError(res, 500, "Failed to join federated voice room", error);
     }
   });
 

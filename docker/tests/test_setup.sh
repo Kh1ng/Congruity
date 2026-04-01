@@ -181,10 +181,16 @@ test_cloud_mode_configure_only() {
 
   assert_contains "${fixture}/docker/.env" "USE_LOCAL_SUPABASE=false" "cloud mode sets local supabase false" || return 1
   assert_contains "${fixture}/docker/.env" "API_EXTERNAL_URL=https://alpha.supabase.co" "cloud mode stores cloud Supabase URL" || return 1
+  assert_contains "${fixture}/docker/.env" "ANON_KEY=SET_FROM_CLOUD_SUPABASE" "cloud mode writes anon key placeholder" || return 1
+  assert_contains "${fixture}/docker/.env" "SERVICE_ROLE_KEY=SET_FROM_CLOUD_SUPABASE" "cloud mode writes service role key placeholder" || return 1
   assert_contains "${fixture}/docker/.env" "LIVEKIT_API_KEY=devkey" "cloud mode stores livekit api key" || return 1
   assert_contains "${fixture}/docker/.env" "TURN_HOST=voice.alpha.example" "cloud mode stores turn host" || return 1
   assert_contains "${fixture}/docker/.env" "SELFHOSTED_PUBLIC_HOST=voice.alpha.example" "cloud mode stores public host" || return 1
   assert_contains "${fixture}/docker/.env" "# Generated on 2026-02-24T00:00:00Z" "cloud mode uses deterministic generated timestamp" || return 1
+  if grep -Fq "CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0" "${fixture}/docker/.env"; then
+    fail "cloud mode should not write static demo anon key"
+    return 1
+  fi
 
   assert_contains "${fixture}/docker/selfhosted-backend-registration.sql" "wss://voice.alpha.example:3001" "cloud mode uses wss signaling URL for non-local host" || return 1
   assert_contains "${fixture}/docker/selfhosted-backend-registration.sql" "alpha-media" "cloud mode uses configured bucket in SQL" || return 1
@@ -223,6 +229,8 @@ test_local_mode_generates_kong() {
   assert_file_exists "${fixture}/docker/volumes/api/kong.yml" "local mode creates kong config" || return 1
   assert_contains "${fixture}/docker/.env" "USE_LOCAL_SUPABASE=true" "local mode sets local supabase true" || return 1
   assert_contains "${fixture}/docker/.env" "API_EXTERNAL_URL=http://localhost:8000" "local mode stores local API URL" || return 1
+  assert_contains "${fixture}/docker/.env" "ANON_KEY=eyJ" "local mode generates jwt anon key" || return 1
+  assert_contains "${fixture}/docker/.env" "SERVICE_ROLE_KEY=eyJ" "local mode generates jwt service role key" || return 1
   assert_contains "${fixture}/docker/.env" "LIVEKIT_URL=ws://livekit:7880" "local mode stores internal livekit url" || return 1
   assert_contains "${fixture}/docker/selfhosted-backend-registration.sql" "ws://localhost:3001" "localhost signaling uses ws protocol" || return 1
   assert_contains "${fixture}/docker/QUICKSTART.md" "**Deployment Mode:** true" "quickstart reflects local supabase mode" || return 1

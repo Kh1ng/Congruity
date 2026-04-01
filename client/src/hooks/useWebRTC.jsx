@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { io } from "socket.io-client";
 import { useAuth } from "@/hooks/useAuth";
+import { appError, devLog, devWarn } from "@/lib/logger";
 
 const DEFAULT_SIGNALING_URL =
   typeof window !== "undefined"
@@ -330,7 +331,7 @@ export function useWebRTC(roomId, options = {}) {
 
       // Handle remote stream
       pc.ontrack = (event) => {
-        console.log("Received remote track from:", userId);
+        devLog("Received remote track from:", userId);
         const inboundStream = event.streams?.[0]
           ? event.streams[0]
           : new MediaStream([event.track]);
@@ -344,7 +345,7 @@ export function useWebRTC(roomId, options = {}) {
       };
 
       pc.onconnectionstatechange = () => {
-        console.log(`Connection state with ${userId}:`, pc.connectionState);
+        devLog(`Connection state with ${userId}:`, pc.connectionState);
         if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
           pc.close();
           peerConnectionsRef.current.delete(userId);
@@ -424,7 +425,7 @@ export function useWebRTC(roomId, options = {}) {
     });
 
     socket.on("connect", () => {
-      console.log("Connected to signaling server");
+      devLog("Connected to signaling server");
       localSocketIdRef.current = socket.id;
       setLocalSocketId(socket.id);
       setIsConnected(Boolean(localStreamRef.current));
@@ -437,7 +438,7 @@ export function useWebRTC(roomId, options = {}) {
     });
 
     socket.on("user-joined", async ({ socketId, userId }) => {
-      console.log("User joined:", userId || socketId);
+      devLog("User joined:", userId || socketId);
       await createPeerConnection(socketId, true);
       playCue("join");
     });
@@ -454,14 +455,14 @@ export function useWebRTC(roomId, options = {}) {
     });
 
     socket.on("offer", async ({ offer, from }) => {
-      console.log("Received offer from:", from);
+      devLog("Received offer from:", from);
       const pc = await createPeerConnection(from, false);
       const meta = peerMetaRef.current.get(from);
       const offerCollision = meta?.makingOffer || pc.signalingState !== "stable";
       const polite = meta?.polite ?? false;
 
       if (offerCollision && !polite) {
-        console.warn("Offer collision: ignoring (impolite)", from);
+        devWarn("Offer collision: ignoring (impolite)", from);
         return;
       }
 
@@ -477,7 +478,7 @@ export function useWebRTC(roomId, options = {}) {
         try {
           await pc.addIceCandidate(new RTCIceCandidate(candidate));
         } catch (err) {
-          console.warn("Failed to add queued ICE", err);
+          devWarn("Failed to add queued ICE", err);
         }
       }
       pendingCandidatesRef.current.delete(from);
@@ -493,7 +494,7 @@ export function useWebRTC(roomId, options = {}) {
     });
 
     socket.on("answer", async ({ answer, from }) => {
-      console.log("Received answer from:", from);
+      devLog("Received answer from:", from);
       const pc = peerConnectionsRef.current.get(from);
       const meta = peerMetaRef.current.get(from);
       if (pc) {
@@ -505,7 +506,7 @@ export function useWebRTC(roomId, options = {}) {
           try {
             await pc.addIceCandidate(new RTCIceCandidate(candidate));
           } catch (err) {
-            console.warn("Failed to add queued ICE", err);
+            devWarn("Failed to add queued ICE", err);
           }
         }
         pendingCandidatesRef.current.delete(from);
@@ -527,18 +528,18 @@ export function useWebRTC(roomId, options = {}) {
       try {
         await pc.addIceCandidate(new RTCIceCandidate(candidate));
       } catch (err) {
-        console.warn("Failed to add ICE", err);
+        devWarn("Failed to add ICE", err);
       }
     });
 
     socket.on("user-left", ({ socketId, userId }) => {
-      console.log("User left:", userId || socketId);
+      devLog("User left:", userId || socketId);
       removePeerConnection(socketId);
       playCue("leave");
     });
 
     socket.on("disconnect", () => {
-      console.log("Disconnected from signaling server");
+      devLog("Disconnected from signaling server");
       setIsConnected(false);
       setRoomUsers([]);
       setLocalSocketId(null);
@@ -592,7 +593,7 @@ export function useWebRTC(roomId, options = {}) {
         setIsConnected(true);
         await renegotiateAll();
       } catch (err) {
-        console.error("Error starting call:", err);
+        appError("Error starting call:", err);
         const mappedMessage = (() => {
           const name = err?.name || "";
           if (name === "NotAllowedError") {
@@ -673,7 +674,7 @@ export function useWebRTC(roomId, options = {}) {
         monitorStreamAudio("local", localStreamRef.current);
       }
     } catch (err) {
-      console.error("Error starting screen share:", err);
+      appError("Error starting screen share:", err);
       setError(err.message);
     }
   }, [monitorStreamAudio, renegotiateAll, screenConstraints, clearOutgoingVideo]);
@@ -716,7 +717,7 @@ export function useWebRTC(roomId, options = {}) {
       renegotiateAll();
       monitorStreamAudio("local", localStreamRef.current);
     } catch (err) {
-      console.error("Error stopping screen share:", err);
+      appError("Error stopping screen share:", err);
     }
   }, [isVideoOff, monitorStreamAudio, renegotiateAll]);
 
@@ -769,7 +770,7 @@ export function useWebRTC(roomId, options = {}) {
           monitorStreamAudio("local", localStreamRef.current);
         })
         .catch((err) => {
-          console.error("Error enabling camera:", err);
+          appError("Error enabling camera:", err);
           setError(err.message);
         });
       return;
@@ -810,7 +811,7 @@ export function useWebRTC(roomId, options = {}) {
         monitorStreamAudio("local", localStreamRef.current);
       })
       .catch((err) => {
-        console.error("Error enabling camera:", err);
+        appError("Error enabling camera:", err);
         setError(err.message);
       });
   }, [monitorStreamAudio, renegotiateAll]);

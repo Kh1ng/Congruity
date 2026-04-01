@@ -45,10 +45,12 @@ export function useDMCall(options = {}) {
   const [isScreenSharing, setIsScreenSharing] = useState(false);
 
   const getAuthToken = useCallback(async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    return session?.access_token || null;
+    try {
+      const sessionResponse = await supabase.auth.getSession();
+      return sessionResponse?.data?.session?.access_token || null;
+    } catch {
+      return null;
+    }
   }, []);
 
   const sendApiSignal = useCallback(
@@ -184,9 +186,14 @@ export function useDMCall(options = {}) {
 
   useEffect(() => {
     const socket = ensureSocket();
-    if (user?.id) {
-      socket.emit("auth:identify", { userId: user.id });
-    }
+    const identify = async () => {
+      if (!user?.id) return;
+      const accessToken = await getAuthToken();
+      if (!accessToken) return;
+      socket.emit("auth:identify", { userId: user.id, accessToken });
+    };
+    identify();
+    socket.on("connect", identify);
 
     const onIncoming = ({ from_user_id: fromUserId, display_name: displayName, offer }) => {
       pendingIncomingOfferRef.current = offer;
@@ -214,11 +221,12 @@ export function useDMCall(options = {}) {
     socket.on("dm:call:hangup", onHangup);
 
     return () => {
+      socket.off("connect", identify);
       socket.off("dm:call:incoming", onIncoming);
       socket.off("dm:call:signal", onSignal);
       socket.off("dm:call:hangup", onHangup);
     };
-  }, [applyIncomingSignal, cleanup, ensureSocket, user?.id]);
+  }, [applyIncomingSignal, cleanup, ensureSocket, getAuthToken, user?.id]);
 
   const call = useCallback(
     async (targetUserId) => {

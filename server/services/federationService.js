@@ -8,6 +8,47 @@ function getServerDomain() {
   return process.env.SERVER_DOMAIN || process.env.SELFHOSTED_PUBLIC_HOST || "localhost";
 }
 
+function normalizeRemoteServer(remoteServer) {
+  if (typeof remoteServer !== "string" || !remoteServer.trim()) {
+    throw new Error("remoteServer is required.");
+  }
+
+  let candidate = remoteServer.trim();
+  if (candidate.includes("://")) {
+    const parsed = new URL(candidate);
+    candidate = parsed.host;
+  }
+
+  if (candidate.includes("/") || candidate.includes("?") || candidate.includes("#")) {
+    throw new Error("remoteServer must be a bare host or host:port.");
+  }
+
+  // Domain, IPv4, or localhost + optional port.
+  if (!/^[a-zA-Z0-9.-]+(?::\d{1,5})?$/.test(candidate)) {
+    throw new Error("remoteServer contains invalid characters.");
+  }
+
+  return candidate.toLowerCase();
+}
+
+function parseFederationAllowList() {
+  return String(process.env.FEDERATION_ALLOWED_SERVERS || "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function isFederationServerAllowed(remoteServer) {
+  const normalized = normalizeRemoteServer(remoteServer);
+  const allowList = parseFederationAllowList();
+
+  if (allowList.length === 0) {
+    return process.env.NODE_ENV !== "production";
+  }
+
+  return allowList.includes(normalized);
+}
+
 function stableStringify(value) {
   if (Array.isArray(value)) {
     return `[${value.map((item) => stableStringify(item)).join(",")}]`;
@@ -40,8 +81,9 @@ function verifyFederationSignature(payload, signature) {
 }
 
 async function joinFederatedVoiceRoom({ remoteServer, channelId, localUser }) {
+  const normalizedRemote = normalizeRemoteServer(remoteServer);
   const infoResponse = await fetch(
-    `https://${remoteServer}/_congruity/federation/v1/info`
+    `https://${normalizedRemote}/_congruity/federation/v1/info`
   );
   if (!infoResponse.ok) {
     throw new Error(`Remote federation info lookup failed (${infoResponse.status})`);
@@ -58,7 +100,7 @@ async function joinFederatedVoiceRoom({ remoteServer, channelId, localUser }) {
   const signature = signFederationPayload(payload);
 
   const response = await fetch(
-    `https://${remoteServer}/_congruity/federation/v1/voice/join`,
+    `https://${normalizedRemote}/_congruity/federation/v1/voice/join`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -78,4 +120,6 @@ module.exports = {
   verifyFederationSignature,
   stableStringify,
   getServerDomain,
+  normalizeRemoteServer,
+  isFederationServerAllowed,
 };

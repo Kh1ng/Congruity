@@ -9,10 +9,21 @@ const { getChannelById } = require("../services/supabaseService");
 const {
   verifyFederationSignature,
   getServerDomain,
+  isFederationServerAllowed,
+  normalizeRemoteServer,
 } = require("../services/federationService");
+const { createRateLimit } = require("../middleware/rateLimit");
+const { sendError } = require("../utils/http");
 
 function createFederationRouter() {
   const router = express.Router();
+  router.use(
+    createRateLimit({
+      windowMs: 60_000,
+      max: 120,
+      keyFn: (req) => req.ip || "unknown",
+    })
+  );
 
   router.get("/v1/info", async (req, res) => {
     const { livekitUrl } = getConnectionInfo();
@@ -25,7 +36,14 @@ function createFederationRouter() {
     });
   });
 
-  router.post("/v1/voice/join", async (req, res) => {
+  router.post(
+    "/v1/voice/join",
+    createRateLimit({
+      windowMs: 60_000,
+      max: 30,
+      keyFn: (req) => req.ip || "unknown",
+    }),
+    async (req, res) => {
     try {
       const {
         room_id: roomId,
@@ -56,6 +74,19 @@ function createFederationRouter() {
         timestamp,
       };
 
+      let normalizedRequestingServer;
+      try {
+        normalizedRequestingServer = normalizeRemoteServer(requestingServer);
+      } catch {
+        res.status(400).json({ error: "Invalid requesting_server value" });
+        return;
+      }
+
+      if (!isFederationServerAllowed(normalizedRequestingServer)) {
+        res.status(403).json({ error: "Requesting server is not allowed" });
+        return;
+      }
+
       const signatureValid = verifyFederationSignature(payload, signature);
       if (!signatureValid) {
         res.status(401).json({ error: "Invalid federation signature" });
@@ -73,6 +104,10 @@ function createFederationRouter() {
         res.status(404).json({ error: "Channel not found" });
         return;
       }
+      if (!channel.federation_enabled) {
+        res.status(403).json({ error: "Channel is not federation-enabled" });
+        return;
+      }
 
       await createOrGetRoom(roomId);
       const participantIdentity = `fed:${userId}`;
@@ -85,12 +120,10 @@ function createFederationRouter() {
         turn_credentials: getTurnIceConfig(participantIdentity),
       });
     } catch (error) {
-      res.status(500).json({
-        error: "Federation join failed",
-        details: String(error?.message || error),
-      });
+      sendError(res, 500, "Federation join failed", error);
     }
-  });
+    }
+  );
 
   return router;
 }

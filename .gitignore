@@ -10,6 +10,10 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+coverage
+coverage/
+client/coverage/
+server/coverage/
 *.local
 
 # Editor directories and files
@@ -25,9 +29,20 @@ dist-ssr
 
 .env
 .env.local
+.env.*
+!.env.example
 
 # Local dev certs
 client/.cert/
+*.pem
+*.key
 
 # Supabase temp
 supabase/.temp/
+
+# Tauri build artifacts
+client/src-tauri/target/
+client/src-tauri/gen/
+
+# Local tooling
+.claude/

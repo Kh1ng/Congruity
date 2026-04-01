@@ -13,12 +13,14 @@ const path = require("path");
 const { Server } = require("socket.io");
 const { createVoiceRouter } = require("./routes/voice");
 const { createFederationRouter } = require("./routes/federation");
+const { authenticateToken } = require("./services/supabaseService");
 const {
   registerUserSocket,
   unregisterSocket,
   getUserSockets,
   getSocketUser,
 } = require("./services/socketRegistry");
+const logger = require("./utils/logger");
 
 const app = express();
 app.use(express.json({ limit: "1mb" }));
@@ -213,7 +215,7 @@ app.get("/rooms", (req, res) => {
 });
 
 io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
+  logger.info("Socket connected", { socketId: socket.id });
 
   const emitDmSignal = ({ fromUserId, toUserId, signalType, payload }) => {
     const socketIds = getUserSockets(toUserId);
@@ -241,9 +243,34 @@ io.on("connection", (socket) => {
     });
   };
 
-  socket.on("auth:identify", ({ userId }) => {
-    if (!isValidId(userId)) return;
-    registerUserSocket(userId, socket.id);
+  socket.on("auth:identify", async (payload = {}) => {
+    const accessToken = typeof payload.accessToken === "string" ? payload.accessToken : null;
+    const claimedUserId = typeof payload.userId === "string" ? payload.userId : null;
+    if (!accessToken) {
+      return;
+    }
+
+    try {
+      const authenticatedUser = await authenticateToken(accessToken);
+      if (!authenticatedUser?.id || !isValidId(authenticatedUser.id)) {
+        socket.emit("auth:identified", { ok: false });
+        return;
+      }
+
+      if (claimedUserId && claimedUserId !== authenticatedUser.id) {
+        logger.warn("Socket identify mismatch", {
+          socketId: socket.id,
+          claimedUserId,
+          authenticatedUserId: authenticatedUser.id,
+        });
+      }
+
+      registerUserSocket(authenticatedUser.id, socket.id);
+      socket.emit("auth:identified", { ok: true, user_id: authenticatedUser.id });
+    } catch (error) {
+      logger.warn("Socket identify failed", { socketId: socket.id, error: String(error?.message || error) });
+      socket.emit("auth:identified", { ok: false });
+    }
   });
 
   const emitRoomUsers = (roomId) => {
@@ -257,8 +284,16 @@ io.on("connection", (socket) => {
   socket.on("join-room", ({ roomId, userId }) => {
     if (!isValidId(roomId)) return;
     if (userId && !isValidId(userId)) return;
-    if (userId) {
-      registerUserSocket(userId, socket.id);
+
+    const authenticatedUserId = getSocketUser(socket.id);
+    if (authenticatedUserId && userId && authenticatedUserId !== userId) {
+      logger.warn("Socket join-room rejected due to user mismatch", {
+        socketId: socket.id,
+        claimedUserId: userId,
+        authenticatedUserId,
+        roomId,
+      });
+      return;
     }
 
     const previousRoomId = socketRoomMap.get(socket.id);
@@ -279,7 +314,7 @@ io.on("connection", (socket) => {
     socket.join(roomId);
     socketRoomMap.set(socket.id, roomId);
 
-    const participantId = userId || socket.id;
+    const participantId = authenticatedUserId || socket.id;
 
     // Track user in room
     if (!rooms.has(roomId)) {
@@ -294,30 +329,31 @@ io.on("connection", (socket) => {
     });
     emitRoomUsers(roomId);
 
-    console.log(`User ${participantId} joined room ${roomId}`);
+    logger.info("Socket joined room", { socketId: socket.id, participantId, roomId });
   });
 
-  socket.on("voice:join", ({ channel_id: channelId, user_id: userId, display_name: displayName }) => {
+  socket.on("voice:join", ({ channel_id: channelId }) => {
+    const userId = getSocketUser(socket.id);
+    if (!userId) return;
     if (!isValidId(channelId)) return;
-    if (userId && isValidId(userId)) {
-      registerUserSocket(userId, socket.id);
-    }
+
     const voiceRoom = `voice:channel:${channelId}`;
     socket.join(voiceRoom);
     socket.to(voiceRoom).emit("voice:participant:joined", {
       channel_id: channelId,
-      user_id: userId || getSocketUser(socket.id),
-      display_name: displayName,
+      user_id: userId,
     });
   });
 
-  socket.on("voice:leave", ({ channel_id: channelId, user_id: userId }) => {
+  socket.on("voice:leave", ({ channel_id: channelId }) => {
+    const userId = getSocketUser(socket.id);
+    if (!userId) return;
     if (!isValidId(channelId)) return;
     const voiceRoom = `voice:channel:${channelId}`;
     socket.leave(voiceRoom);
     socket.to(voiceRoom).emit("voice:participant:left", {
       channel_id: channelId,
-      user_id: userId || getSocketUser(socket.id),
+      user_id: userId,
     });
   });
 
@@ -353,7 +389,7 @@ io.on("connection", (socket) => {
         userId: participantId,
       });
       emitRoomUsers(roomId);
-      console.log(`User ${participantId} left room ${roomId}`);
+      logger.info("Socket left room", { socketId: socket.id, participantId, roomId });
     }
   });
 
@@ -380,7 +416,7 @@ io.on("connection", (socket) => {
 
   // Handle disconnect
   socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
+    logger.info("Socket disconnected", { socketId: socket.id });
 
     // Remove from all rooms and notify
     rooms.forEach((users, roomId) => {
@@ -408,5 +444,5 @@ app.use("/_congruity/federation", createFederationRouter());
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   const protocol = useHttps ? "https" : "http";
-  console.log(`Signaling server running on ${protocol}://0.0.0.0:${PORT}`);
+  logger.info("Signaling server running", { protocol, host: "0.0.0.0", port: PORT });
 });
