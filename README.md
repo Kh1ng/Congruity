@@ -92,11 +92,12 @@ Docker setup script:
 
 ## Documentation
 
-See `/Users/coltonspurgin/Developer/congruity/docs/README.md` for the curated docs index and which docs are current vs planning/historical.
+- `docs/README.md` - docs index
+- `docs/SELF_HOSTING_GUIDE.md` - self-hosting guide
+- `docs/VOICE_ARCHITECTURE.md` - DM P2P vs channel SFU architecture
+- `docs/FEDERATION.md` - federation endpoint and signing contract
+- `docs/user-stories.md` - product/user story backlog
 
-Key docs:
-- `/Users/coltonspurgin/Developer/congruity/docs/SELF_HOSTING_GUIDE.md`
-- `/Users/coltonspurgin/Developer/congruity/docs/SETUP_WORKFLOW.md`
-- `/Users/coltonspurgin/Developer/congruity/docs/ALPHA_RELEASE.md`
-- `/Users/coltonspurgin/Developer/congruity/docs/ALPHA_SECURITY_AUDIT.md`
-- `/Users/coltonspurgin/Developer/congruity/docs/user-stories.md`
+## Support
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/H2H21FMK25)

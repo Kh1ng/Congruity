@@ -46,3 +46,9 @@ client/src-tauri/gen/
 
 # Local tooling
 .claude/
+
+# Docker setup outputs (machine-specific, may include secrets)
+docker/QUICKSTART.md
+docker/create-first-server.sql
+docker/selfhosted-backend-registration.sql
+docker/volumes/

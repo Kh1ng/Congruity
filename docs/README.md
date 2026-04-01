@@ -1,39 +1,13 @@
 # Docs Index
 
-This folder accumulated planning notes, review docs, and implementation summaries during alpha prep. Use this index to find the current references first.
+Primary docs for the public repo:
 
-## Current / Primary
+- `SELF_HOSTING_GUIDE.md` - self-hosting setup and operations
+- `VOICE_ARCHITECTURE.md` - DM/WebRTC and channel voice architecture
+- `FEDERATION.md` - federation contract and request signing
+- `user-stories.md` - product/user story backlog
 
-- `SELF_HOSTING_GUIDE.md` - Canonical self-hosting guide (direct-connect, hybrid, full self-hosted)
-- `SETUP_WORKFLOW.md` - Short step-by-step workflow for alpha setup (including direct-connect path)
-- `ALPHA_RELEASE.md` - Build/release playbook (desktop + mobile)
-- `ALPHA_SECURITY_AUDIT.md` - Current alpha security hardening summary
-- `TAURI_DEPLOYMENT_READINESS.md` - Desktop/mobile Tauri build readiness audit and checklist
-- `DEPLOYMENT_COMPARISON.md` - Hybrid vs full self-hosted tradeoffs
-- `VOICE_ARCHITECTURE.md` - P2P DM vs LiveKit channel voice architecture and operational requirements
-- `FEDERATION.md` - Federation endpoint contract, signing model, and peering notes
-- `user-stories.md` - Product and UX requirements backlog
-- `UI_SCREENSHOT_EVALUATION.md` - Manual screenshot review matrix/checklist for responsive UI changes
+Repo-level setup and contribution guidance lives in:
 
-## Useful, But Planning/Design-Oriented
-
-- `archive/CLIENT_RUNTIME_CONFIG_DESIGN.md` - Runtime config/wizard design proposal
-- `archive/RUNTIME_CONFIG_TESTING.md` - Test scenarios for runtime config work
-- `archive/RUNTIME_CONFIG_SUMMARY.md` - Implementation summary for runtime config work
-- `ALPHA_CLIENT_BUILD_GUIDE.md` - Detailed build guide (superseded in part by `ALPHA_RELEASE.md`)
-- `archive/ALPHA_READINESS_REVIEW.md` - Broad readiness review (historical snapshot)
-- `archive/ALPHA_LAUNCH_CHECKLIST.md` - Historical implementation checklist
-
-## Removed Redundant Summaries
-
-These were condensed status summaries and overlapped heavily with the docs above:
-- `ALPHA_QUICK_REF.md`
-- `ALPHA_PREP_SUMMARY.md`
-
-## Maintenance Guidance
-
-- Prefer updating the primary docs above instead of creating another summary file.
-- If a doc is a point-in-time review, label it clearly as historical in the title.
-- Keep `README.md` at repo root aligned with the current alpha workflow and direct-connect behavior.
-- Keep self-host docs aligned with actual `docker/setup.sh` behavior and generated file names.
-- Keep planning docs in `docs/archive/` unless they are active execution docs.
+- `../README.md`
+- `../CONTRIBUTING.md`
