@@ -1,8 +1,42 @@
-import React, { useState } from "react";
-import { Send } from "lucide-react";
+import React, { useRef, useState } from "react";
+import { Paperclip, Send } from "lucide-react";
 import { useMessages } from "@/hooks";
 import Spinner from "./Spinner";
 import Avatar from "./Avatar";
+
+const IMAGE_TYPES = new Set(["jpg", "jpeg", "png", "gif", "webp"]);
+const AUDIO_TYPES = new Set(["mp3", "ogg", "wav"]);
+
+function AttachmentPreview({ url }) {
+  if (!url) return null;
+  const ext = url.split("?")[0].split(".").pop()?.toLowerCase();
+  if (IMAGE_TYPES.has(ext)) {
+    return (
+      <img
+        src={url}
+        alt="attachment"
+        className="mt-1 max-h-64 max-w-xs rounded-md object-contain"
+        loading="lazy"
+      />
+    );
+  }
+  if (AUDIO_TYPES.has(ext)) {
+    return (
+      // eslint-disable-next-line jsx-a11y/media-has-caption
+      <audio controls src={url} className="mt-1 max-w-xs" />
+    );
+  }
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="mt-1 block truncate text-xs text-theme-accent underline"
+    >
+      {url.split("/").pop()?.split("?")[0] || "attachment"}
+    </a>
+  );
+}
 
 function formatTimestamp(raw) {
   if (!raw) return "";
@@ -25,8 +59,11 @@ function renderMessageContent(content) {
 }
 
 function Messages({ channelId, channel, memberMap = {} }) {
-  const { messages, loading, error, sendMessage } = useMessages(channelId);
+  const { messages, loading, error, sendMessage, sendAttachment } = useMessages(channelId);
   const [newMessage, setNewMessage] = useState("");
+  const [uploadError, setUploadError] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
   const handlePostMessage = async () => {
     if (!newMessage.trim()) return;
@@ -36,6 +73,21 @@ function Messages({ channelId, channel, memberMap = {} }) {
     } catch (err) {
       console.error("Error sending message:", err);
       alert(err.message);
+    }
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setUploadError(null);
+    setUploading(true);
+    try {
+      await sendAttachment(file);
+    } catch (err) {
+      setUploadError(err.message);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -104,7 +156,8 @@ function Messages({ channelId, channel, memberMap = {} }) {
                         </span>
                       </div>
                     )}
-                    {renderMessageContent(message.content)}
+                    {message.content && renderMessageContent(message.content)}
+                    <AttachmentPreview url={message.attachment_url} />
                   </div>
                 </li>
               );
@@ -113,28 +166,51 @@ function Messages({ channelId, channel, memberMap = {} }) {
         )}
       </div>
       <div className="mt-2 border-t border-theme pt-2">
-        <div className="relative">
+        {uploadError && (
+          <div className="mb-1 rounded bg-red-900/30 px-2 py-1 text-xs text-red-400">
+            {uploadError}
+          </div>
+        )}
+        <div className="relative flex items-center gap-1">
           <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                handlePostMessage();
-              }
-            }}
-            placeholder={`Message #${channel?.name || "channel"}`}
-            className="w-full rounded-lg border border-theme bg-[color:var(--gruv-bg1)] px-3 py-2 pr-10 text-theme placeholder:text-[color:var(--gruv-bg4)]"
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp,audio/mpeg,audio/ogg,audio/wav"
+            className="hidden"
+            onChange={handleFileChange}
           />
-          {newMessage.trim().length > 0 && (
-            <button
-              onClick={handlePostMessage}
-              className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-theme-muted transition hover:bg-[color:var(--gruv-bg2)] hover:text-theme-accent"
-              aria-label="Send message"
-            >
-              <Send size={15} />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            title="Attach image or audio"
+            className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-theme-muted transition hover:bg-[color:var(--gruv-bg2)] hover:text-theme-accent disabled:opacity-50"
+          >
+            {uploading ? <Spinner size={14} /> : <Paperclip size={15} />}
+          </button>
+          <div className="relative flex-1">
+            <input
+              type="text"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handlePostMessage();
+                }
+              }}
+              placeholder={`Message #${channel?.name || "channel"}`}
+              className="w-full rounded-lg border border-theme bg-[color:var(--gruv-bg1)] px-3 py-2 pr-10 text-theme placeholder:text-[color:var(--gruv-bg4)]"
+            />
+            {newMessage.trim().length > 0 && (
+              <button
+                onClick={handlePostMessage}
+                className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-theme-muted transition hover:bg-[color:var(--gruv-bg2)] hover:text-theme-accent"
+                aria-label="Send message"
+              >
+                <Send size={15} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

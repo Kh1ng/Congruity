@@ -158,6 +158,61 @@ export function useMessages(channelId) {
   );
 
   /**
+   * Upload a file and send it as a message attachment.
+   * @param {File} file - The file to upload (image/gif/audio)
+   * @param {string} [caption] - Optional text caption
+   * @returns {Promise<Object>} Created message
+   */
+  const sendAttachment = useCallback(
+    async (file, caption) => {
+      if (!user) throw new Error("Must be logged in to send attachments");
+      if (!channelId) throw new Error("No channel selected");
+
+      const MAX_SIZE = 50 * 1024 * 1024;
+      if (file.size > MAX_SIZE) throw new Error("File exceeds 50 MB limit");
+
+      const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
+      const path = `${user.id}/${channelId}/${Date.now()}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("media")
+        .upload(path, file, { contentType: file.type, upsert: false });
+
+      if (uploadError) {
+        if (uploadError.message?.includes("Payload too large") ||
+            uploadError.statusCode === 413) {
+          throw new Error("Storage quota exceeded — file too large");
+        }
+        if (uploadError.statusCode === 507 ||
+            uploadError.message?.includes("quota") ||
+            uploadError.message?.includes("storage full")) {
+          throw new Error("Storage is full — contact your server admin");
+        }
+        throw new Error(`Upload failed: ${uploadError.message}`);
+      }
+
+      const { data: urlData } = supabase.storage.from("media").getPublicUrl(path);
+      const attachmentUrl = urlData?.publicUrl;
+      if (!attachmentUrl) throw new Error("Failed to get public URL for attachment");
+
+      const { data, error: insertError } = await supabase
+        .from("messages")
+        .insert({
+          channel_id: channelId,
+          user_id: user.id,
+          content: caption?.trim() || null,
+          attachment_url: attachmentUrl,
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+      return data;
+    },
+    [user, channelId]
+  );
+
+  /**
    * Edit a message (own messages only)
    * @param {string} messageId - Message ID to edit
    * @param {string} content - New content
@@ -203,6 +258,7 @@ export function useMessages(channelId) {
     loading,
     error,
     sendMessage,
+    sendAttachment,
     editMessage,
     deleteMessage,
     refetch: fetchMessages,

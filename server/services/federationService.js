@@ -80,10 +80,17 @@ function verifyFederationSignature(payload, signature) {
   return crypto.timingSafeEqual(expectedBuffer, actualBuffer);
 }
 
+function buildFederationUrl(host, path) {
+  const isLocal = /^(localhost|127\.\d+\.\d+\.\d+)(:\d+)?$/.test(host);
+  const allowInsecure = process.env.FEDERATION_ALLOW_INSECURE === "true";
+  const scheme = isLocal || allowInsecure ? "http" : "https";
+  return `${scheme}://${host}${path}`;
+}
+
 async function joinFederatedVoiceRoom({ remoteServer, channelId, localUser }) {
   const normalizedRemote = normalizeRemoteServer(remoteServer);
   const infoResponse = await fetch(
-    `https://${normalizedRemote}/_congruity/federation/v1/info`
+    buildFederationUrl(normalizedRemote, "/_congruity/federation/v1/info")
   );
   if (!infoResponse.ok) {
     throw new Error(`Remote federation info lookup failed (${infoResponse.status})`);
@@ -100,7 +107,7 @@ async function joinFederatedVoiceRoom({ remoteServer, channelId, localUser }) {
   const signature = signFederationPayload(payload);
 
   const response = await fetch(
-    `https://${normalizedRemote}/_congruity/federation/v1/voice/join`,
+    buildFederationUrl(normalizedRemote, "/_congruity/federation/v1/voice/join"),
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -108,7 +115,8 @@ async function joinFederatedVoiceRoom({ remoteServer, channelId, localUser }) {
     }
   );
   if (!response.ok) {
-    throw new Error(`Remote federation voice join failed (${response.status})`);
+    const body = typeof response.text === "function" ? await response.text().catch(() => "") : "";
+    throw new Error(`Remote federation voice join failed (${response.status})${body ? `: ${body}` : ""}`);
   }
 
   return response.json();
@@ -116,6 +124,7 @@ async function joinFederatedVoiceRoom({ remoteServer, channelId, localUser }) {
 
 module.exports = {
   joinFederatedVoiceRoom,
+  buildFederationUrl,
   signFederationPayload,
   verifyFederationSignature,
   stableStringify,
