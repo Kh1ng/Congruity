@@ -22,7 +22,6 @@ function AttachmentPreview({ url }) {
   }
   if (AUDIO_TYPES.has(ext)) {
     return (
-      // eslint-disable-next-line jsx-a11y/media-has-caption
       <audio controls src={url} className="mt-1 max-w-xs" />
     );
   }
