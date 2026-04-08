@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "node --test \"tests/**/*.test.js\""
+    "test": "node --test tests/federationService.test.js tests/turnService.test.js tests/federation.routes.test.js tests/federation.integration.test.js"
   },
   "author": "Colton Spurgin",
   "license": "ISC",
