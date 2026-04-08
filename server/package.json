@@ -1,0 +1,21 @@
+{
+  "name": "congruity-signaling",
+  "version": "1.0.0",
+  "description": "WebRTC signaling server for Congruity",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "node --test tests/federationService.test.js tests/turnService.test.js tests/federation.routes.test.js tests/federation.integration.test.js"
+  },
+  "author": "Colton Spurgin",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.21.1",
+    "livekit-server-sdk": "^2.14.0",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  }
+}

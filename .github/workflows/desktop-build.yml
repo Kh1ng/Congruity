@@ -1,0 +1,50 @@
+name: desktop-build
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install client dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Test and lint
+        working-directory: client
+        run: |
+          npm run test:run
+          npm run lint
+
+      - name: Build desktop app
+        working-directory: client
+        run: npm run tauri:build:desktop
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: congruity-${{ matrix.os }}
+          path: client/src-tauri/target/release/bundle

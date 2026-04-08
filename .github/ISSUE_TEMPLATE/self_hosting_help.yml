@@ -1,0 +1,23 @@
+name: Self-hosting help
+description: Get help running Congruity in Docker/self-host mode
+labels: [self-hosting, question]
+body:
+  - type: textarea
+    id: setup
+    attributes:
+      label: Setup details
+      description: Include deployment mode, compose command, and host environment.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and errors
+      description: Paste relevant output from `docker compose ps` and `docker compose logs`.
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Sanitized config
+      description: Include non-secret values from `.env` and what URL/ports you are using.

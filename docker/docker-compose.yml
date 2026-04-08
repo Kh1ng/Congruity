@@ -1,0 +1,244 @@
+# Congruity Self-Hosted Server
+# This docker-compose file sets up:
+# - Supabase (PostgreSQL, Auth, Realtime, Storage)
+# - WebRTC Signaling Server
+# - Nginx reverse proxy
+
+services:
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: congruity-livekit
+    restart: unless-stopped
+    command: --config /etc/livekit.yaml
+    ports:
+      - "${LIVEKIT_HTTP_PORT:-7880}:7880"
+      - "${LIVEKIT_TCP_PORT:-7881}:7881"
+      - "${LIVEKIT_UDP_PORT:-7882}:7882/udp"
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+    environment:
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+      TURN_HOST: ${TURN_HOST}
+      TURN_SECRET: ${TURN_SECRET}
+
+  coturn:
+    image: coturn/coturn:latest
+    container_name: congruity-coturn
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./turnserver.conf:/etc/coturn/turnserver.conf:ro
+    command: >
+      /bin/sh -c "cp /etc/coturn/turnserver.conf /tmp/turnserver.conf &&
+      sed -i 's|\${TURN_SECRET}|${TURN_SECRET}|g' /tmp/turnserver.conf &&
+      turnserver -c /tmp/turnserver.conf -n"
+
+  # MinIO object storage for self-hosted media assets
+  minio:
+    image: minio/minio:latest
+    container_name: congruity-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MINIO_REGION_NAME: ${MINIO_REGION:-us-east-1}
+    volumes:
+      - minio-data:/data
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: congruity-minio-init
+    depends_on:
+      - minio
+    restart: "no"
+    entrypoint: >
+      /bin/sh -c "
+      until /usr/bin/mc alias set congruity http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin123}; do
+        echo 'Waiting for MinIO...';
+        sleep 2;
+      done;
+      /usr/bin/mc mb --ignore-existing congruity/${MINIO_BUCKET:-congruity-media};
+      /usr/bin/mc anonymous set download congruity/${MINIO_BUCKET:-congruity-media};
+      "
+
+  # PostgreSQL Database
+  db:
+    image: supabase/postgres:15.6.1.145
+    container_name: congruity-db
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXP: ${JWT_EXPIRY:-3600}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./volumes/db/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: pg_isready -U postgres -h localhost
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Supabase Auth
+  auth:
+    image: supabase/gotrue:v2.164.0
+    container_name: congruity-auth
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: ${API_EXTERNAL_URL:-http://localhost:8000}
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/postgres
+      GOTRUE_SITE_URL: ${SITE_URL:-http://localhost:5173}
+      GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS:-}
+      GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP:-false}
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_EXP: ${JWT_EXPIRY:-3600}
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: ${ENABLE_EMAIL_SIGNUP:-true}
+      GOTRUE_MAILER_AUTOCONFIRM: ${ENABLE_EMAIL_AUTOCONFIRM:-true}
+      GOTRUE_SMTP_HOST: ${SMTP_HOST:-}
+      GOTRUE_SMTP_PORT: ${SMTP_PORT:-587}
+      GOTRUE_SMTP_USER: ${SMTP_USER:-}
+      GOTRUE_SMTP_PASS: ${SMTP_PASS:-}
+      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL:-}
+      GOTRUE_MAILER_URLPATHS_INVITE: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_RECOVERY: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: /auth/v1/verify
+
+  # Supabase Realtime
+  realtime:
+    image: supabase/realtime:v2.30.34
+    container_name: congruity-realtime
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 4000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: supabase_admin
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: postgres
+      DB_AFTER_CONNECT_QUERY: "SET search_path TO _realtime"
+      DB_ENC_KEY: supabaserealtime
+      API_JWT_SECRET: ${JWT_SECRET}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:-UpNVntn3cDxHJpq99YMc1T1AQgQpc8kfYTuRgBiYa15BLrx8etQoXz3gZv1/u2oq}
+      ERL_AFLAGS: -proto_dist inet_tcp
+      DNS_NODES: "''"
+      RLIMIT_NOFILE: "10000"
+      APP_NAME: realtime
+      SEED_SELF_HOST: "true"
+
+  # Supabase Storage
+  storage:
+    image: supabase/storage-api:v1.11.13
+    container_name: congruity-storage
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ANON_KEY: ${ANON_KEY}
+      SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      POSTGREST_URL: http://rest:3000
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgres://supabase_storage_admin:${POSTGRES_PASSWORD}@db:5432/postgres
+      FILE_SIZE_LIMIT: 52428800
+      STORAGE_BACKEND: file
+      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
+      TENANT_ID: stub
+      REGION: stub
+      GLOBAL_S3_BUCKET: stub
+      ENABLE_IMAGE_TRANSFORMATION: "true"
+      IMGPROXY_URL: http://imgproxy:8080
+    volumes:
+      - storage-data:/var/lib/storage
+
+  # PostgREST API
+  rest:
+    image: postgrest/postgrest:v12.2.0
+    container_name: congruity-rest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@db:5432/postgres
+      PGRST_DB_SCHEMAS: public,storage,graphql_public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
+      PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY:-3600}
+
+  # WebRTC Signaling Server
+  signaling:
+    build:
+      context: ../server
+      dockerfile: Dockerfile
+    container_name: congruity-signaling
+    restart: unless-stopped
+    ports:
+      - "${SIGNALING_PORT:-3001}:3001"
+    environment:
+      PORT: 3001
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGIN: ${SITE_URL:-http://localhost:5173}
+      SUPABASE_URL: ${API_EXTERNAL_URL}
+      SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      ANON_KEY: ${ANON_KEY}
+      LIVEKIT_URL: ${LIVEKIT_URL}
+      LIVEKIT_EXTERNAL_URL: ${LIVEKIT_EXTERNAL_URL}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+      TURN_SECRET: ${TURN_SECRET}
+      TURN_HOST: ${TURN_HOST}
+      FEDERATION_SHARED_SECRET: ${FEDERATION_SHARED_SECRET}
+      SERVER_DOMAIN: ${SERVER_DOMAIN}
+
+  # Kong API Gateway
+  kong:
+    image: kong:2.8.1
+    container_name: congruity-kong
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8000}:8000/tcp"
+      - "${API_SSL_PORT:-8443}:8443/tcp"
+    depends_on:
+      auth:
+        condition: service_started
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      DASHBOARD_USERNAME: ${DASHBOARD_USERNAME:-supabase}
+      DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD:-this_password_is_insecure_and_should_be_updated}
+    volumes:
+      - ./volumes/api/kong.yml:/home/kong/kong.yml:ro
+
+volumes:
+  db-data:
+  storage-data:
+  minio-data:
