@@ -2,6 +2,59 @@ import React, { useMemo, useState } from "react";
 import AccountSettings from "./AccountSettings";
 import { useTheme } from "@/hooks/useTheme";
 import { useServers } from "@/hooks";
+import { ConfigManager } from "@/lib/serverConfig";
+
+/**
+ * Generates and copies an invite link for the selected server.
+ *
+ * The link encodes this server's Supabase URL, anon key, signaling URL, and
+ * the server's invite code. Recipients open the link → ConfigWizard pre-fills
+ * the server config → they sign up or log in → auto-join this server.
+ *
+ * Privacy: the anon key is intentionally public (Supabase JS client key, gated
+ * by RLS). Server admins never receive another server's credentials.
+ */
+function InviteLinkPanel({ server }) {
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState(null);
+
+  if (!server || server.isDirect) return null;
+  const inviteCode = server.invite_code;
+  if (!inviteCode) return null;
+
+  const handleCopy = () => {
+    setError(null);
+    try {
+      const activeConfig = ConfigManager.getActiveConfig();
+      if (!activeConfig) throw new Error("No server config found");
+      const link = ConfigManager.buildInviteUrl(activeConfig, inviteCode);
+      navigator.clipboard.writeText(link).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+      });
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  return (
+    <div className="rounded border border-theme bg-theme-surface/40 p-3">
+      <div className="text-xs font-semibold text-theme-muted">Invite Link</div>
+      <p className="mt-1 text-xs text-theme-muted">
+        Share this link to invite people to <span className="text-theme">{server.name}</span>.
+        Opening it will configure their Congruity client and automatically join them to this server.
+      </p>
+      <button
+        type="button"
+        onClick={handleCopy}
+        className="mt-2 rounded border border-theme px-3 py-1.5 text-xs text-theme-muted transition hover:text-theme-accent"
+      >
+        {copied ? "Copied!" : "Copy invite link"}
+      </button>
+      {error && <div className="mt-1 text-xs text-red-400">{error}</div>}
+    </div>
+  );
+}
 
 const TAB_OPTIONS = [
   { id: "application", label: "Application" },
@@ -373,13 +426,7 @@ function SettingsView({
                   roles with channel permissions and edit surfaces.
                 </p>
               </div>
-              <div className="rounded border border-theme bg-theme-surface/40 p-3">
-                <div className="text-xs font-semibold text-theme-muted">Server-Specific Settings</div>
-                <p className="mt-1 text-xs text-theme-muted">
-                  This tab separates server controls from application/account settings. Editing server
-                  metadata and invites will be expanded here next.
-                </p>
-              </div>
+              <InviteLinkPanel server={server} />
               {!server.isDirect && (
                 <div className="rounded border border-theme bg-theme-surface/40 p-3">
                   <div className="text-xs font-semibold text-theme-muted">Membership</div>

@@ -88,6 +88,62 @@ export const ConfigManager = {
   clearConfig() {
     safeRemove(CONFIG_KEY);
   },
+
+  // ─── Invite link helpers ────────────────────────────────────────────────
+
+  /**
+   * Build a shareable invite URL encoding the server config + invite code.
+   * The recipient's app decodes this to pre-fill setup and auto-join the server.
+   *
+   * Privacy: the anon key is intentionally public (it's what the Supabase JS
+   * client uses; real access is gated by RLS and service role keys server-side).
+   *
+   * @param {{ supabaseUrl, supabaseAnonKey, signalingUrl }} serverConfig
+   * @param {string} inviteCode
+   * @param {string} [base] - defaults to current origin
+   */
+  buildInviteUrl(serverConfig, inviteCode, base = window.location.origin) {
+    const payload = btoa(
+      JSON.stringify({
+        supabaseUrl: serverConfig.supabaseUrl,
+        supabaseAnonKey: serverConfig.supabaseAnonKey,
+        signalingUrl: serverConfig.signalingUrl || null,
+      })
+    );
+    const url = new URL(base);
+    url.searchParams.set("sc", payload);
+    url.searchParams.set("invite", inviteCode);
+    return url.toString();
+  },
+
+  /**
+   * Parse invite params from a URL search string.
+   * Returns null if params are absent or malformed.
+   * @param {string} [search] - defaults to window.location.search
+   * @returns {{ serverConfig: object, inviteCode: string } | null}
+   */
+  parseInviteUrl(search = typeof window !== "undefined" ? window.location.search : "") {
+    const params = new URLSearchParams(search);
+    const sc = params.get("sc");
+    const inviteCode = params.get("invite");
+    if (!sc || !inviteCode) return null;
+    try {
+      const serverConfig = JSON.parse(atob(sc));
+      if (!serverConfig?.supabaseUrl || !serverConfig?.supabaseAnonKey) return null;
+      return { serverConfig, inviteCode };
+    } catch {
+      return null;
+    }
+  },
+
+  /** Remove invite params from the address bar without a page reload. */
+  clearInviteParams() {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("sc");
+    url.searchParams.delete("invite");
+    window.history.replaceState({}, "", url.toString());
+  },
 };
 
 export default ConfigManager;

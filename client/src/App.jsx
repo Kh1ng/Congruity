@@ -1,19 +1,31 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Login from "./Components/Login";
 import Home from "./Components/Home";
 import { ConfigWizard } from "./Components/ConfigWizard";
 import { useAuth } from "./hooks/useAuth";
+import { useServers } from "./hooks/useServers";
 import { ConfigManager } from "./lib/serverConfig";
 
 function App() {
   const { user, loading, authError, retrySession, signOut } = useAuth();
+  const { joinServer } = useServers();
   const [needsConfig, setNeedsConfig] = useState(true);
   const [checkingConfig, setCheckingConfig] = useState(true);
   const [forceConfig, setForceConfig] = useState(false);
   const [guestMode, setGuestMode] = useState(false);
+  // Invite code to auto-join once the user is logged in
+  const [pendingInviteCode, setPendingInviteCode] = useState(null);
+  const [inviteJoinState, setInviteJoinState] = useState(null); // null | "joining" | "done" | Error
 
   useEffect(() => {
-    // Check if configuration is needed
+    // Check for invite params even before config — user may have a config already
+    const parsed = ConfigManager.parseInviteUrl();
+    if (parsed && !ConfigManager.needsConfiguration()) {
+      // Config already set (same server or manually configured): just store invite
+      setPendingInviteCode(parsed.inviteCode);
+      ConfigManager.clearInviteParams();
+    }
+
     try {
       const configNeeded = ConfigManager.needsConfiguration();
       setNeedsConfig(configNeeded);
@@ -25,6 +37,33 @@ function App() {
     }
   }, []);
 
+  // Once user is logged in and there's a pending invite, auto-join
+  useEffect(() => {
+    if (!user || !pendingInviteCode || inviteJoinState) return;
+    setInviteJoinState("joining");
+    joinServer(pendingInviteCode)
+      .then(() => {
+        setInviteJoinState("done");
+        setPendingInviteCode(null);
+      })
+      .catch((err) => {
+        // "Already a member" is fine — treat as success
+        if (err?.message?.toLowerCase().includes("already")) {
+          setInviteJoinState("done");
+          setPendingInviteCode(null);
+        } else {
+          setInviteJoinState(err);
+        }
+      });
+  }, [user, pendingInviteCode, inviteJoinState, joinServer]);
+
+  const handleWizardComplete = useCallback((inviteCode) => {
+    if (inviteCode) setPendingInviteCode(inviteCode);
+    setNeedsConfig(false);
+    setForceConfig(false);
+    retrySession();
+  }, [retrySession]);
+
   // Show config wizard if needed
   if (checkingConfig) {
     return (
@@ -35,15 +74,7 @@ function App() {
   }
 
   if (needsConfig || forceConfig) {
-    return (
-      <ConfigWizard
-        onComplete={() => {
-          setNeedsConfig(false);
-          setForceConfig(false);
-          retrySession();
-        }}
-      />
-    );
+    return <ConfigWizard onComplete={handleWizardComplete} />;
   }
 
   if (loading) {
@@ -144,6 +175,23 @@ function App() {
           Sign Out
         </button>
       </div>
+      {inviteJoinState === "joining" && (
+        <div className="mb-3 shrink-0 rounded border border-theme bg-theme-surface-alt px-3 py-2 text-xs text-theme-muted">
+          Joining server…
+        </div>
+      )}
+      {inviteJoinState instanceof Error && (
+        <div className="mb-3 shrink-0 rounded border border-red-700 bg-red-900/20 px-3 py-2 text-xs text-red-400">
+          Could not join server: {inviteJoinState.message}
+          <button
+            type="button"
+            className="ml-3 underline hover:text-red-300"
+            onClick={() => setInviteJoinState(null)}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
       <div className="flex-1 min-h-0">
         <Home />
       </div>
